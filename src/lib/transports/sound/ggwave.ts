@@ -20,7 +20,7 @@ let modulePromise: Promise<GgwaveModule> | undefined;
 
 /** The WASM module is loaded once and shared by every encoder and decoder. */
 export function loadGgwave(): Promise<GgwaveModule> {
-  modulePromise ??= ggwaveFactory().then((g) => {
+  modulePromise ??= ggwaveFactory({ print: () => {} }).then((g) => {
     g.disableLog();
     return g;
   });

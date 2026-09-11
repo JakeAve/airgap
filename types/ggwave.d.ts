@@ -70,5 +70,13 @@ export interface GgwaveModule {
   };
 }
 
-declare function ggwaveFactory(): Promise<GgwaveModule>;
+export interface GgwaveModuleOverrides {
+  /** Receives the C side's stdout lines; the encode binding prints one per call. */
+  print?: (text: string) => void;
+  printErr?: (text: string) => void;
+}
+
+declare function ggwaveFactory(
+  overrides?: GgwaveModuleOverrides,
+): Promise<GgwaveModule>;
 export default ggwaveFactory;
