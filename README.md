@@ -1,0 +1,32 @@
+# Airgap
+
+A library of simple two-player arcade games that run entirely in the browser
+with no server. Two phones exchange moves ("orders") directly, by sound
+([ggwave](https://github.com/ggerganov/ggwave)) or by QR code. The two channels
+are interchangeable, so a noisy room or a broken camera never blocks a game.
+
+Hosted on GitHub Pages as a PWA.
+
+## Setup
+
+Requires [Deno](https://deno.com) 2.x.
+
+```bash
+deno task setup   # installs the git hooks (run once after cloning)
+deno task dev     # builds to dist/ and serves it at http://localhost:8000, rebuilding on change
+```
+
+## Commands
+
+```bash
+deno task check   # fmt check + lint + type check
+deno task test    # unit tests
+deno task build   # production build to dist/
+```
+
+The pre-commit and pre-push hooks run `check` and `test`.
+
+## Deploy
+
+Pushes to `main` build and deploy to GitHub Pages via
+`.github/workflows/pages.yml`.
