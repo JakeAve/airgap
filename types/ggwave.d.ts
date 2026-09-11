@@ -29,13 +29,14 @@ export interface GgwaveModule {
   init(params: GgwaveParameters): GgwaveInstance;
   free(instance: GgwaveInstance): void;
   /**
+   * `payload` may be raw bytes; a string is UTF-8 encoded first.
    * Returns the waveform as raw bytes in `sampleFormatOut` (float32 by
    * default, so four bytes per sample). The view aliases WASM memory and is
    * only valid until the next call.
    */
   encode(
     instance: GgwaveInstance,
-    payload: string,
+    payload: Uint8Array | string,
     protocol: GgwaveProtocolId,
     volume: number,
   ): Int8Array;
