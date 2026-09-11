@@ -31,7 +31,11 @@ deno task check        # fmt check + lint + type check
 deno task test         # unit tests
 deno task pre-commit   # check + test (also run by .githooks/pre-commit)
 deno task pre-push     # check + test (also run by .githooks/pre-push)
+deno task e2e          # build, then drive diag.html in headless Chromium with fake devices
 ```
+
+`deno task e2e` needs a Chromium: `deno run -A npm:playwright install chromium`
+once, or set `CHROMIUM_PATH` (the web sandbox's session hook does this).
 
 Always run `deno task pre-commit` (or let the git hook run it) before
 committing.
@@ -43,6 +47,15 @@ committing.
 - `src/main.ts` — app entry; bundled to `dist/main.js`
 - `src/sw.ts` — service worker; bundled to `dist/sw.js`. `__BUILD_ID__` is
   replaced at build time so each build gets its own cache.
+- `src/diag.ts` + `static/diag.html` — diagnostics page: send and receive a test
+  message over either transport, with timing log
+- `src/codecWorker.ts` — Web Worker hosting ggwave (sound encode + decode) and
+  the QR decoder; bundled to `dist/codec-worker.js`
+- `src/captureWorklet.ts` — AudioWorklet that forwards microphone samples in
+  1024-sample blocks; bundled to `dist/capture-worklet.js`
+- `src/adapters/` — the only browser-API code: `codecWorker.ts` (page-side
+  handle), `speaker.ts`, `microphone.ts`, `screen.ts`, `camera.ts`, and
+  `soundTransport.ts` / `qrTransport.ts` implementing `Transport`
 - `src/lib/` — pure, tested modules shared by every game
   - `protocol.ts` — wire protocol constants (version, frame layout, limits)
   - `bits/` — `BitWriter`, `BitReader`, `crc8`
@@ -55,10 +68,13 @@ committing.
   - `transports/qr/` — `QrEncoder` (frames → module matrix), `QrDecoder` (RGBA
     image → frames), `rasterize.ts` (matrix → RGBA, used by tests and the screen
     adapter), `bytesAsText.ts`
-  - planned: device adapters (speaker, microphone, screen, camera), a worker
-    hosting both decoders, `link.ts`
+  - `transport.ts` — `Transport` interface and abort helpers
+  - `link.ts` — `Link`: envelope in, frames out over one transport; frames in
+    over any transports, one envelope out
+  - `transports/codecWorkerProtocol.ts` — message types for the worker
 - `src/games/<game>/` — planned: `codec.ts`, `logic.ts`, `ui.ts` per game
-- `scripts/` — Deno scripts (`build.ts`, `dev.ts`)
+- `scripts/` — Deno scripts (`build.ts`, `dev.ts` with optional HTTPS from
+  `.certs/`, `e2e/` Playwright run against fake devices)
 - `types/` — hand-written declarations for untyped npm packages
 - `.githooks/` — pre-commit and pre-push; enabled by `deno task setup`
 - `.github/workflows/` — `ci.yml` (check, test, build on every push) and
@@ -66,8 +82,8 @@ committing.
 
 ## Architecture
 
-Games speak typed messages to a single `Link` (planned). The Link wraps them in
-an envelope, splits the envelope into fixed-size frames, and hands frames to
+Games speak typed messages to a single `Link`. The Link wraps them in an
+envelope, splits the envelope into fixed-size frames, and hands frames to
 whichever transport the user picked. Transports only move frames, so a receiver
 can collect frames from sound and QR interchangeably and the reassembler does
 not care which delivered them.
@@ -83,9 +99,13 @@ not care which delivered them.
 - **QR:** up to `QR_MAX_FRAMES_PER_CODE` (32) frames concatenated per code, byte
   mode with a latin1 text hook so bytes are not UTF-8 expanded. Longer messages
   cycle through several codes.
-- Decoders will run in a Web Worker. An AudioWorklet forwards sample chunks; the
-  camera loop posts ImageData. Both decoders share a `push(chunk)` interface
-  returning an array of frames.
+- Decoders and the sound encoder run in the codec worker, so the main bundle
+  carries no ggwave. The AudioWorklet forwards sample blocks; the camera loop
+  posts downscaled ImageData and waits for each decode before grabbing the next
+  frame. Both decoders share a `push(chunk)` interface returning frames.
+- Sending loops the frame sequence until its abort signal fires; receiving
+  resolves on the first complete envelope and then stops every transport it
+  opened.
 
 ## Wire-protocol facts worth remembering
 

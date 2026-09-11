@@ -12,6 +12,8 @@ export interface SoundEncoderOptions {
   protocol?: SoundProtocol;
   /** ggwave volume, 0..100. */
   volume?: number;
+  /** Rate the returned samples are meant to be played at. */
+  sampleRate?: number;
 }
 
 /** Turns one frame into 48 kHz mono float samples. Pure; playback lives in the speaker adapter. */
@@ -23,7 +25,7 @@ export class SoundEncoder {
 
   private constructor(g: GgwaveModule, options: SoundEncoderOptions) {
     this.#g = g;
-    this.#instance = g.init(frameParameters(g));
+    this.#instance = g.init(frameParameters(g, options.sampleRate));
     this.#protocol = options.protocol ?? "fastest";
     this.#volume = options.volume ?? 50;
   }
@@ -42,7 +44,7 @@ export class SoundEncoder {
     this.#protocol = value;
   }
 
-  encode(frame: Uint8Array): Float32Array {
+  encode(frame: Uint8Array): Float32Array<ArrayBuffer> {
     if (frame.length !== FRAME_BYTES) {
       throw new RangeError(
         `frame must be ${FRAME_BYTES} bytes, got ${frame.length}`,
@@ -54,9 +56,11 @@ export class SoundEncoder {
       protocolId(this.#g, this.#protocol),
       this.#volume,
     );
-    return new Float32Array(
-      raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
+    const samples = new Float32Array(
+      raw.byteLength / Float32Array.BYTES_PER_ELEMENT,
     );
+    samples.set(new Float32Array(raw.buffer, raw.byteOffset, samples.length));
+    return samples;
   }
 
   dispose(): void {

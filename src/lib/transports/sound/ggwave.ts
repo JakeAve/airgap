@@ -27,12 +27,19 @@ export function loadGgwave(): Promise<GgwaveModule> {
   return modulePromise;
 }
 
-export function frameParameters(g: GgwaveModule): GgwaveParameters {
+/**
+ * `deviceSampleRate` is the AudioContext rate samples arrive at and leave in;
+ * ggwave resamples to its internal rate itself.
+ */
+export function frameParameters(
+  g: GgwaveModule,
+  deviceSampleRate = SOUND_SAMPLE_RATE,
+): GgwaveParameters {
   return {
     ...g.getDefaultParameters(),
     payloadLength: FRAME_BYTES,
-    sampleRateInp: SOUND_SAMPLE_RATE,
-    sampleRateOut: SOUND_SAMPLE_RATE,
+    sampleRateInp: deviceSampleRate,
+    sampleRateOut: deviceSampleRate,
     sampleRate: SOUND_SAMPLE_RATE,
     samplesPerFrame: SOUND_SAMPLES_PER_BLOCK,
     sampleFormatInp: g.SampleFormat.GGWAVE_SAMPLE_FORMAT_F32,

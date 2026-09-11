@@ -27,9 +27,9 @@ export class SoundDecoder {
   #lastFrame: Uint8Array | null = null;
   #lastFrameBlock = 0;
 
-  private constructor(g: GgwaveModule) {
+  private constructor(g: GgwaveModule, sampleRate?: number) {
     this.#g = g;
-    this.#instance = g.init(frameParameters(g));
+    this.#instance = g.init(frameParameters(g, sampleRate));
     const ids = g.ProtocolId;
     for (
       const id of [
@@ -45,8 +45,11 @@ export class SoundDecoder {
     }
   }
 
-  static async create(): Promise<SoundDecoder> {
-    return new SoundDecoder(await loadGgwave());
+  /** `sampleRate` is the rate of the samples that will be pushed. */
+  static async create(
+    options: { sampleRate?: number } = {},
+  ): Promise<SoundDecoder> {
+    return new SoundDecoder(await loadGgwave(), options.sampleRate);
   }
 
   push(samples: Float32Array): Uint8Array[] {
