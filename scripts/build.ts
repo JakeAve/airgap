@@ -27,11 +27,18 @@ async function bundle(entry: string, out: string) {
   if (!success) throw new Error(`bundle failed for ${entry}`);
 }
 
+const ENTRIES: [entry: string, out: string][] = [
+  ["src/main.ts", "main.js"],
+  ["src/sw.ts", "sw.js"],
+  ["src/diag.ts", "diag.js"],
+  ["src/codecWorker.ts", "codec-worker.js"],
+  ["src/captureWorklet.ts", "capture-worklet.js"],
+];
+
 export async function build() {
   await emptyDir(DIST);
   await copy(join(ROOT, "static"), DIST, { overwrite: true });
-  await bundle("src/main.ts", join(DIST, "main.js"));
-  await bundle("src/sw.ts", join(DIST, "sw.js"));
+  for (const [entry, out] of ENTRIES) await bundle(entry, join(DIST, out));
 
   const swPath = join(DIST, "sw.js");
   const sw = await Deno.readTextFile(swPath);

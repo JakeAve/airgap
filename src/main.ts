@@ -14,6 +14,7 @@ function render() {
     <section class="card">
       <h2>No games yet</h2>
       <p>Games will appear here. Protocol version ${PROTOCOL_VERSION}.</p>
+      <p><a href="./diag.html">Transport diagnostics</a></p>
     </section>
   `;
 }

@@ -26,6 +26,22 @@ deno task build   # production build to dist/
 
 The pre-commit and pre-push hooks run `check` and `test`.
 
+## Testing on phones
+
+Open `/diag.html` on two devices to send a message between them by sound or QR.
+Browsers only allow the microphone and camera on secure origins, so for local
+testing over Wi-Fi the dev server needs a certificate. With
+[mkcert](https://github.com/FiloSottile/mkcert):
+
+```bash
+mkdir -p .certs
+mkcert -cert-file .certs/cert.pem -key-file .certs/key.pem localhost 192.168.1.10
+deno task dev   # now serves https on port 8000
+```
+
+Replace the IP with your machine's LAN address and install mkcert's root CA on
+each phone. The deployed GitHub Pages site is already HTTPS.
+
 ## Deploy
 
 Pushes to `main` build and deploy to GitHub Pages via

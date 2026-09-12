@@ -17,3 +17,8 @@ fi
 deno --version
 deno install
 deno task setup
+
+# The web sandbox ships Chromium outside Playwright's cache; point the e2e task at it.
+if [ -x /opt/pw-browsers/chromium ]; then
+  echo 'export CHROMIUM_PATH=/opt/pw-browsers/chromium' >> "$CLAUDE_ENV_FILE"
+fi
