@@ -5,12 +5,16 @@ import { buildFrames, type Leg, type Message } from "@/lib/frames/frames.ts";
 import { MAX_SEQ, MAX_SESSION } from "@/lib/protocol.ts";
 import { decodeText, encodeText } from "@/games/diag/codec.ts";
 import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
+import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
 import { CodecWorker } from "@/adapters/codecWorker.ts";
 import { SoundTransport } from "@/adapters/soundTransport.ts";
 import { QrTransport } from "@/adapters/qrTransport.ts";
+import { drawQr } from "@/adapters/screen.ts";
 
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
+const button = (id: string) => $<HTMLButtonElement>(id);
+const value = (id: string) => $<HTMLInputElement>(id).value;
 
 const log = (line: string) => {
   const el = $<HTMLPreElement>("log");
@@ -36,6 +40,9 @@ const ACK_PASSES = 2;
 /** Ours for this page load, so a message we hear ourselves is recognisable. Never 1, which the e2e fixtures use for the peer. */
 const SESSION_ID = 2 + Math.floor(Math.random() * (MAX_SESSION - 1));
 
+/** Listen, scan and handshake share the mic and the worker, so only one runs. */
+const RECEIVERS = ["listen", "scan", "receive-both", "handshake"];
+
 let link: Link | undefined;
 let sound: SoundTransport | undefined;
 let sending: AbortController | undefined;
@@ -43,6 +50,7 @@ let receiving: AbortController | undefined;
 let turning: AbortController | undefined;
 let seq = 0;
 let selfSuppressed = 0;
+const qrEncoder = new QrEncoder();
 
 function textMessage(text: string, type = CALL, at?: number): Message {
   return {
@@ -53,21 +61,24 @@ function textMessage(text: string, type = CALL, at?: number): Message {
   };
 }
 
-function updateEstimate() {
-  const text = $<HTMLInputElement>("send-text").value;
-  const via = $<HTMLSelectElement>("send-via").value as TransportId;
-  const protocol = $<HTMLSelectElement>("send-protocol").value as SoundProtocol;
-  const frames = buildFrames(textMessage(text, CALL, 0)).length;
-  const estimate = via === "sound"
-    ? `${frames} frame${frames === 1 ? "" : "s"}, about ${
-      (frames * (SECONDS_PER_FRAME[protocol] + 0.15)).toFixed(1)
-    } s per pass`
-    : `${frames} frame${frames === 1 ? "" : "s"} in one code`;
-  $("send-estimate").textContent = estimate;
+function protocol(): SoundProtocol {
+  return value("send-protocol") as SoundProtocol;
 }
 
-async function start() {
-  $<HTMLButtonElement>("start").disabled = true;
+function updateSend() {
+  const frames = buildFrames(textMessage(value("send-text"), CALL, 0));
+  drawQr(qrEncoder.encode(frames), $<HTMLCanvasElement>("qr-canvas"));
+  const n = frames.length;
+  $("send-estimate").textContent = `${n} frame${n === 1 ? "" : "s"}, about ${
+    (n * (SECONDS_PER_FRAME[protocol()] + 0.15)).toFixed(1)
+  } s per pass`;
+}
+
+/** Builds the worker and transports once, from a user gesture so iOS lets the audio context run. */
+async function ensureLink(): Promise<
+  { link: Link; sound: SoundTransport } | undefined
+> {
+  if (link && sound) return { link, sound };
   const context = new AudioContext({ sampleRate: 48_000 });
   $("sample-rate").textContent = `${context.sampleRate} Hz`;
   $("worker-state").textContent = "loading";
@@ -76,7 +87,6 @@ async function start() {
       "./codec-worker.js",
       context.sampleRate,
     );
-    $("worker-state").textContent = "ready";
     sound = new SoundTransport(context, worker, "./capture-worklet.js");
     const qr = new QrTransport(
       $<HTMLCanvasElement>("qr-canvas"),
@@ -84,37 +94,58 @@ async function start() {
       worker,
     );
     link = new Link([sound, qr]);
-    await sound.listen();
-    $("mic-state").textContent = "rolling";
-    $("send-card").hidden = false;
-    $("receive-card").hidden = false;
-    updateEstimate();
+    $("worker-state").textContent = "ready";
     $("session-id").textContent = String(SESSION_ID);
     log(`ready at ${context.sampleRate} Hz, session ${SESSION_ID}`);
+    return { link, sound };
   } catch (err) {
     $("worker-state").textContent = "failed";
     log(`start failed: ${err}`);
-    $<HTMLButtonElement>("start").disabled = false;
+    return undefined;
   }
 }
 
-async function send() {
-  if (!link || !sound) return;
-  const text = $<HTMLInputElement>("send-text").value;
-  const via = $<HTMLSelectElement>("send-via").value as TransportId;
-  sound.protocol = $<HTMLSelectElement>("send-protocol").value as SoundProtocol;
-  sound.maxPasses = Infinity;
-  sending = new AbortController();
-  $<HTMLButtonElement>("send").disabled = true;
-  $<HTMLButtonElement>("send-stop").disabled = false;
-  log(`sending ${text.length} chars via ${via}`);
+function syncMic() {
+  button("mic").textContent = sound?.listening ? "Turn off mic" : "Turn on mic";
+}
+
+async function toggleMic() {
+  button("mic").disabled = true;
   try {
-    await link.send(textMessage(text), via, sending.signal);
+    const ready = await ensureLink();
+    if (!ready) return;
+    if (ready.sound.listening) {
+      ready.sound.stopListening();
+      log("mic off");
+    } else {
+      await ready.sound.listen();
+      log("mic on");
+    }
+  } catch (err) {
+    log(`mic failed: ${err}`);
+  } finally {
+    button("mic").disabled = false;
+    syncMic();
+  }
+}
+
+async function play() {
+  const ready = await ensureLink();
+  if (!ready) return;
+  const text = value("send-text");
+  ready.sound.protocol = protocol();
+  ready.sound.maxPasses = Infinity;
+  sending = new AbortController();
+  button("play").disabled = true;
+  button("play-stop").disabled = false;
+  log(`sending ${text.length} chars via sound (${ready.sound.protocol})`);
+  try {
+    await ready.link.send(textMessage(text), "sound", sending.signal);
   } catch (err) {
     log(`send failed: ${err}`);
   } finally {
-    $<HTMLButtonElement>("send").disabled = false;
-    $<HTMLButtonElement>("send-stop").disabled = true;
+    button("play").disabled = false;
+    button("play-stop").disabled = true;
     log("send stopped");
   }
 }
@@ -128,40 +159,35 @@ function notOurs(leg: Leg): boolean {
   return false;
 }
 
-async function receive(via: TransportId[]): Promise<Message | undefined> {
-  if (!link) return undefined;
+function busy(stop: string, on: boolean) {
+  for (const id of RECEIVERS) button(id).disabled = on;
+  button(stop).disabled = !on;
+}
+
+async function receive(via: TransportId[]) {
+  const ready = await ensureLink();
+  if (!ready) return;
   receiving = new AbortController();
-  for (
-    const id of ["listen", "scan", "receive-both", "exchange", "handshake"]
-  ) {
-    $<HTMLButtonElement>(id).disabled = true;
-  }
-  $<HTMLButtonElement>("receive-stop").disabled = false;
+  busy("receive-stop", true);
   $("camera").hidden = !via.includes("qr");
   $("receive-progress").textContent = `waiting on ${via.join(" + ")}`;
   $("received-text").textContent = "";
   log(`receiving via ${via.join(" + ")}`);
   const started = performance.now();
+  const at = () => ((performance.now() - started) / 1000).toFixed(2);
   try {
-    const message = await link.receive(via, receiving.signal, {
+    const message = await ready.link.receive(via, receiving.signal, {
       onProgress: (p) => {
         $("receive-progress").textContent =
           `frames ${p.received} of ${p.total}`;
-        log(
-          `frame ${p.received}/${p.total} at ${
-            ((performance.now() - started) / 1000).toFixed(2)
-          } s`,
-        );
+        log(`frame ${p.received}/${p.total} at ${at()} s`);
       },
       accept: notOurs,
     });
     const text = decodeText(message.payload);
     $("received-text").textContent = text;
-    $("receive-progress").textContent = `done in ${
-      ((performance.now() - started) / 1000).toFixed(2)
-    } s`;
+    $("receive-progress").textContent = `done in ${at()} s`;
     log(`received "${text}" (seq ${message.seq})`);
-    return message;
   } catch (err) {
     $("receive-progress").textContent = receiving.signal.aborted
       ? "stopped"
@@ -169,44 +195,16 @@ async function receive(via: TransportId[]): Promise<Message | undefined> {
     if (!receiving.signal.aborted) log(`receive failed: ${err}`);
   } finally {
     receiving.abort();
-    for (
-      const id of ["listen", "scan", "receive-both", "exchange", "handshake"]
-    ) {
-      $<HTMLButtonElement>(id).disabled = false;
-    }
-    $<HTMLButtonElement>("receive-stop").disabled = true;
+    busy("receive-stop", false);
     $("camera").hidden = true;
-  }
-  return undefined;
-}
-
-/**
- * Transmits and listens at the same time, the way a real exchange will: the
- * peer's message is the only proof they heard ours, so hearing it is what stops
- * us transmitting.
- */
-async function exchange() {
-  const sendDone = send();
-  try {
-    const heard = await receive(["sound", "qr"]);
-    if (heard) {
-      log(
-        sending?.signal.aborted
-          ? "peer heard only after we stopped transmitting"
-          : "peer heard while we were still transmitting",
-      );
-    }
-  } finally {
-    sending?.abort();
-    await sendDone;
+    syncMic();
   }
 }
 
 /** Listens for at most `ms` (Infinity to wait indefinitely) for a message `want` accepts. */
 async function listenFor(
-  via: TransportId[],
   ms: number,
-  want?: (leg: Leg) => boolean,
+  want: (leg: Leg) => boolean,
 ): Promise<Message | undefined> {
   if (!link) return undefined;
   const stop = new AbortController();
@@ -215,11 +213,10 @@ async function listenFor(
     : undefined;
   const giveUp = () => stop.abort();
   turning?.signal.addEventListener("abort", giveUp, { once: true });
-  $("camera").hidden = !via.includes("qr");
   try {
-    return await link.receive(via, stop.signal, {
+    return await link.receive(["sound"], stop.signal, {
       accept: (e) => {
-        if (want && !want(e)) {
+        if (!want(e)) {
           log(`ignored type ${e.type} seq ${e.seq} (not what we await)`);
           return false;
         }
@@ -231,7 +228,6 @@ async function listenFor(
   } finally {
     if (timer !== undefined) clearTimeout(timer);
     turning?.signal.removeEventListener("abort", giveUp);
-    $("camera").hidden = true;
   }
 }
 
@@ -261,15 +257,17 @@ function jitter(ms: number): Promise<void> {
  * a device needs to stop transmitting and have its microphone listening.
  */
 async function handshake() {
-  if (!link || !sound) return;
-  const role = $<HTMLSelectElement>("turn-role").value;
-  const guardMs = Number($<HTMLInputElement>("guard-ms").value);
-  const turnaroundMs = Number($<HTMLInputElement>("turnaround-ms").value);
-  const via = $<HTMLSelectElement>("send-via").value as TransportId;
-  sound.protocol = $<HTMLSelectElement>("send-protocol").value as SoundProtocol;
+  const ready = await ensureLink();
+  if (!ready) return;
+  const { link, sound } = ready;
+  const role = value("turn-role");
+  const guardMs = Number(value("guard-ms"));
+  const turnaroundMs = Number(value("turnaround-ms"));
+  sound.protocol = protocol();
   sound.maxPasses = 1;
   await sound.listen();
-  const text = $<HTMLInputElement>("send-text").value;
+  syncMic();
+  const text = value("handshake-text");
   const round = 0;
   const mine = (type: number) => textMessage(text, type, round);
   const ackOnly = { ...mine(ACK), payload: new Uint8Array() };
@@ -280,30 +278,30 @@ async function handshake() {
   const ackWindow = turnaroundMs + passMs(ackOnly) + guardMs;
 
   turning = new AbortController();
-  const ids = ["listen", "scan", "receive-both", "exchange", "handshake"];
-  for (const id of ids) $<HTMLButtonElement>(id).disabled = true;
-  $<HTMLButtonElement>("receive-stop").disabled = false;
-  $("received-text").textContent = "";
+  busy("handshake-stop", true);
+  $("handshake-received").textContent = "";
   const started = performance.now();
   const at = () => ((performance.now() - started) / 1000).toFixed(2);
+  const status = (s: string) => {
+    $("handshake-progress").textContent = s;
+  };
   const show = (m: Message) => {
-    $("received-text").textContent = decodeText(m.payload);
+    $("handshake-received").textContent = decodeText(m.payload);
   };
 
   log(
-    `handshake as ${role} over ${via}: one pass ${
+    `handshake as ${role} over sound (${sound.protocol}): one pass ${
       (passMs(mine(CALL)) / 1000).toFixed(2)
     } s, reply due within ${replyWindow} ms, ack within ${ackWindow} ms`,
   );
   try {
     if (role === "host") {
       for (let attempt = 1; !turning.signal.aborted; attempt++) {
-        $("receive-progress").textContent = `call ${attempt}: transmitting`;
+        status(`call ${attempt}: transmitting`);
         log(`call ${attempt}: transmitting at ${at()} s`);
-        await link.send(mine(CALL), via, turning.signal);
-        $("receive-progress").textContent = `call ${attempt}: awaiting reply`;
+        await link.send(mine(CALL), "sound", turning.signal);
+        status(`call ${attempt}: awaiting reply`);
         const reply = await listenFor(
-          [via],
           replyWindow,
           (e) => e.type === REPLY && e.seq === round,
         );
@@ -318,30 +316,29 @@ async function handshake() {
         log(`call ${attempt}: reply at ${at()} s, acking`);
         await pauseFor(turnaroundMs);
         sound.maxPasses = ACK_PASSES;
-        await link.send(ackOnly, via, turning.signal);
-        $("receive-progress").textContent = `done in ${at()} s`;
+        await link.send(ackOnly, "sound", turning.signal);
+        status(`done in ${at()} s`);
         log(`handshake complete in ${at()} s`);
         return;
       }
     } else {
-      $("receive-progress").textContent = "awaiting a call";
-      const call = await listenFor([via], Infinity, (e) => e.type === CALL);
+      status("awaiting a call");
+      const call = await listenFor(Infinity, (e) => e.type === CALL);
       if (!call) return;
       show(call);
       log(`call heard at ${at()} s, replying`);
       for (let attempt = 1; !turning.signal.aborted; attempt++) {
         await pauseFor(turnaroundMs);
-        $("receive-progress").textContent = `reply ${attempt}: transmitting`;
+        status(`reply ${attempt}: transmitting`);
         log(`reply ${attempt}: transmitting at ${at()} s`);
-        await link.send(mine(REPLY), via, turning.signal);
-        $("receive-progress").textContent = `reply ${attempt}: awaiting ack`;
+        await link.send(mine(REPLY), "sound", turning.signal);
+        status(`reply ${attempt}: awaiting ack`);
         const ack = await listenFor(
-          [via],
           ackWindow,
           (e) => e.type === ACK && e.seq === call.seq,
         );
         if (ack) {
-          $("receive-progress").textContent = `done in ${at()} s`;
+          status(`done in ${at()} s`);
           log(`handshake complete in ${at()} s`);
           return;
         }
@@ -349,28 +346,24 @@ async function handshake() {
         await jitter(frameMs);
       }
     }
+    status("stopped");
   } catch (err) {
     if (!turning.signal.aborted) log(`handshake failed: ${err}`);
   } finally {
     turning.abort();
     sound.maxPasses = Infinity;
-    for (const id of ids) $<HTMLButtonElement>(id).disabled = false;
-    $<HTMLButtonElement>("receive-stop").disabled = true;
+    busy("handshake-stop", false);
   }
 }
 
-$("start").onclick = start;
-$("send").onclick = send;
-$("send-stop").onclick = () => sending?.abort();
-$("listen").onclick = () => receive(["sound"]);
-$("scan").onclick = () => receive(["qr"]);
-$("receive-both").onclick = () => receive(["sound", "qr"]);
-$("exchange").onclick = exchange;
-$("handshake").onclick = handshake;
-$("receive-stop").onclick = () => {
-  receiving?.abort();
-  turning?.abort();
-};
-for (const id of ["send-text", "send-via", "send-protocol"]) {
-  $(id).oninput = updateEstimate;
-}
+button("mic").onclick = toggleMic;
+button("play").onclick = play;
+button("play-stop").onclick = () => sending?.abort();
+button("listen").onclick = () => receive(["sound"]);
+button("scan").onclick = () => receive(["qr"]);
+button("receive-both").onclick = () => receive(["sound", "qr"]);
+button("receive-stop").onclick = () => receiving?.abort();
+button("handshake").onclick = handshake;
+button("handshake-stop").onclick = () => turning?.abort();
+for (const id of ["send-text", "send-protocol"]) $(id).oninput = updateSend;
+updateSend();

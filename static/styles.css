@@ -111,7 +111,7 @@ a:hover {
   flex-direction: column;
   gap: 0.5rem;
   max-width: 40rem;
-  margin-bottom: 1.5rem;
+  margin: 0 auto 1.5rem;
 }
 
 .site-header h1 {
@@ -191,6 +191,7 @@ a:hover {
   display: grid;
   gap: 1rem;
   max-width: 40rem;
+  margin: 0 auto;
 }
 
 .row {
@@ -576,13 +577,18 @@ button:disabled {
 }
 
 .camera {
-  display: block;
+  position: fixed;
+  inset: auto 0 0;
   width: 100%;
-  max-width: 30rem;
+  height: 50vh;
+  object-fit: cover;
   background: #05050a;
-  border: 1px solid rgba(var(--rx-rgb), 0.6);
-  border-radius: 2px;
+  border-top: 1px solid rgba(var(--rx-rgb), 0.6);
   box-shadow: 0 0 24px rgba(var(--rx-rgb), 0.25);
+}
+
+body:has(.camera:not([hidden])) {
+  padding-bottom: 50vh;
 }
 
 .log {

@@ -52,7 +52,7 @@ try {
   });
 
   await page.goto(`http://localhost:${PORT}${BASE_PATH}/diag.html`);
-  await page.click("#start");
+  await page.click("#mic");
   await page.waitForFunction(
     () => document.querySelector("#worker-state")?.textContent === "ready",
     null,
@@ -77,27 +77,22 @@ try {
   await receiveVia("receive via qr", "#scan");
   await receiveVia("receive via both", "#receive-both");
 
-  for (const via of ["sound", "qr"]) {
-    await page.selectOption("#send-via", via);
-    await page.click("#send");
-    await page.waitForTimeout(via === "sound" ? 1500 : 300);
-    await page.click("#send-stop");
-    await page.waitForFunction(
-      () =>
-        document.querySelector("#log")?.textContent?.includes("send stopped"),
-      null,
-      { timeout: 5_000 },
-    );
-    console.log(`send via ${via}: stopped cleanly`);
-  }
+  await page.click("#play");
+  await page.waitForTimeout(1500);
+  await page.click("#play-stop");
+  await page.waitForFunction(
+    () => document.querySelector("#log")?.textContent?.includes("send stopped"),
+    null,
+    { timeout: 5_000 },
+  );
+  console.log("play via sound: stopped cleanly");
 
   // Transmitting and decoding at once. Sound against sound, because with the
   // camera fixture in view the QR path wins in a tenth of a second and proves
   // nothing: what matters is that the single codec worker still decodes the
   // peer while it encodes for our own speaker. Acoustic self-hearing only
   // happens on real devices; the accept predicate covers it in link.test.ts.
-  await page.selectOption("#send-via", "sound");
-  await page.click("#send");
+  await page.click("#play");
   await page.click("#listen");
   try {
     await page.waitForFunction(
@@ -118,7 +113,7 @@ try {
       )}`,
     );
   }
-  await page.click("#send-stop");
+  await page.click("#play-stop");
 
   // The fixture message is a CALL, so a guest-role handshake should hear it and
   // answer. There is no peer to ack, so it can only get as far as replying.
@@ -143,32 +138,11 @@ try {
     );
     console.log("handshake: heard the call and answered it");
   } catch {
-    failures.push(`handshake: ${await page.textContent("#receive-progress")}`);
-  }
-  await page.click("#receive-stop");
-
-  // The exchange button is the rehearsal for two real phones: transmit and
-  // listen on both channels, and stop transmitting once the peer is heard.
-  await page.click("#exchange");
-  try {
-    await page.waitForFunction(
-      () =>
-        document.querySelector("#log")?.textContent?.includes(
-          "peer heard while we were still transmitting",
-        ) === true,
-      null,
-      { timeout: 30_000 },
+    failures.push(
+      `handshake: ${await page.textContent("#handshake-progress")}`,
     );
-    await page.waitForFunction(
-      () =>
-        document.querySelector<HTMLButtonElement>("#send")?.disabled === false,
-      null,
-      { timeout: 10_000 },
-    );
-    console.log("exchange: stopped transmitting once the peer was heard");
-  } catch {
-    failures.push(`exchange: ${await page.textContent("#receive-progress")}`);
   }
+  await page.click("#handshake-stop");
 } finally {
   await browser.close();
   await server.shutdown();

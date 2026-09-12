@@ -32,51 +32,39 @@
           <dd id="sample-rate">–</dd>
           <dt>Codec worker</dt>
           <dd id="worker-state">not started</dd>
-          <dt>Microphone</dt>
-          <dd id="mic-state">not started</dd>
           <dt>Our session id</dt>
           <dd id="session-id">–</dd>
           <dt>Own messages ignored</dt>
           <dd id="self-suppressed">0</dd>
         </dl>
-        <div class="row">
-          <button id="start" class="tx">Start</button>
-        </div>
+        <button id="mic" class="rx">Turn on mic</button>
       </section>
 
-      <section class="card tx" id="send-card" hidden>
+      <section class="card tx">
         <div class="card-head">
           <h2>Send</h2>
           <span class="mono muted">tx</span>
         </div>
         <label>Message <input id="send-text" value="hello airgap" maxlength="12" /></label>
-        <div class="row">
-          <label>Via
-            <select id="send-via">
-              <option value="sound">Sound</option>
-              <option value="qr">QR</option>
-            </select>
-          </label>
-          <label>Protocol
-            <select id="send-protocol">
-              <option value="fastest">fastest</option>
-              <option value="fast">fast</option>
-              <option value="normal">normal</option>
-              <option value="ultrasound-fastest">ultrasound fastest</option>
-              <option value="ultrasound-fast">ultrasound fast</option>
-              <option value="ultrasound-normal">ultrasound normal</option>
-            </select>
-          </label>
-        </div>
+        <canvas id="qr-canvas" class="qr"></canvas>
+        <label>Sound protocol
+          <select id="send-protocol">
+            <option value="fastest">fastest</option>
+            <option value="fast">fast</option>
+            <option value="normal">normal</option>
+            <option value="ultrasound-fastest">ultrasound fastest</option>
+            <option value="ultrasound-fast">ultrasound fast</option>
+            <option value="ultrasound-normal">ultrasound normal</option>
+          </select>
+        </label>
         <p id="send-estimate" class="mono muted"></p>
         <div class="row">
-          <button id="send" class="tx">Send</button>
-          <button id="send-stop" disabled>Stop</button>
+          <button id="play" class="tx">Play</button>
+          <button id="play-stop" disabled>Stop</button>
         </div>
-        <canvas id="qr-canvas" class="qr"></canvas>
       </section>
 
-      <section class="card rx" id="receive-card" hidden>
+      <section class="card rx">
         <div class="card-head">
           <h2>Receive</h2>
           <span class="mono muted">rx</span>
@@ -85,9 +73,21 @@
           <button id="listen" class="rx">Listen</button>
           <button id="scan" class="rx">Scan</button>
           <button id="receive-both" class="ghost-rx">Both</button>
-          <button id="exchange" class="ghost-rx">Send + receive at once</button>
           <button id="receive-stop" disabled>Stop</button>
         </div>
+        <div class="readout">
+          <p id="receive-progress" class="status">idle</p>
+          <p class="value">Received <strong id="received-text"></strong></p>
+        </div>
+        <video id="camera" class="camera" hidden></video>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Handshake</h2>
+          <span class="mono muted">sound</span>
+        </div>
+        <label>Message <input id="handshake-text" value="hello airgap" maxlength="12" /></label>
         <div class="row">
           <label>Turns as
             <select id="turn-role">
@@ -96,18 +96,21 @@
             </select>
           </label>
           <label>Turnaround ms
-            <input id="turnaround-ms" type="number" value="400" min="0" step="50" />
+            <input id="turnaround-ms" type="number" inputmode="numeric" pattern="[0-9]*" value="50" min="0" step="10" />
           </label>
           <label>Guard ms
-            <input id="guard-ms" type="number" value="500" min="0" step="100" />
+            <input id="guard-ms" type="number" inputmode="numeric" pattern="[0-9]*" value="100" min="0" step="10" />
           </label>
-          <button id="handshake" class="ghost-rx">Handshake</button>
+        </div>
+        <div class="row">
+          <button id="handshake" class="tx">Handshake</button>
+          <button id="handshake-stop" disabled>Stop</button>
         </div>
         <div class="readout">
-          <p id="receive-progress" class="status">idle</p>
-          <p class="value">Received <strong id="received-text"></strong></p>
+          <p id="handshake-progress" class="status">idle</p>
+          <p
+            class="value">Received <strong id="handshake-received"></strong></p>
         </div>
-        <video id="camera" class="camera" hidden></video>
       </section>
 
       <section class="card">
