@@ -42,8 +42,8 @@ Samples heard while we talk decode to nobody. Headless reacquisition fell from
 
 **The leg type separates a peer's message from our own echo.** Within a round no
 device awaits a type it also sends: the caller sends CALL and ACK and awaits
-only REPLY; the responder sends only REPLY. So the envelope needs no sender or
-role bit, and stale legs of earlier rounds fall to the seq check. This is why
+only REPLY; the responder sends only REPLY. So the frame header needs no sender
+or role bit, and stale legs of earlier rounds fall to the seq check. This is why
 there is no BYE type either — an out-of-turn message is exactly the case where a
 device cannot tell its own echo from the peer's, so resigning is a value in the
 game's payload and travels inside a normal round.

@@ -1,5 +1,5 @@
 import { abortError, type Transport } from "@/lib/transport.ts";
-import { chunkFramesForQr, QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
+import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
 import type { CodecWorker } from "./codecWorker.ts";
 import { showQrCodes } from "./screen.ts";
 import { Camera } from "./camera.ts";
@@ -22,10 +22,7 @@ export class QrTransport implements Transport {
   }
 
   send(frames: Uint8Array[], signal: AbortSignal): Promise<void> {
-    const codes = chunkFramesForQr(frames).map((chunk) =>
-      this.#encoder.encode(chunk)
-    );
-    return showQrCodes(codes, this.#canvas, signal);
+    return showQrCodes([this.#encoder.encode(frames)], this.#canvas, signal);
   }
 
   async receive(

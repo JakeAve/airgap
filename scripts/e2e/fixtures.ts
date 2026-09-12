@@ -1,7 +1,7 @@
 // Builds fake-device fixtures from the real codec: a WAV for Chromium's fake
 // microphone and a y4m video for its fake camera, both carrying `TEXT`.
-import { encodeEnvelope } from "@/lib/envelope/envelope.ts";
 import { buildFrames } from "@/lib/frames/frames.ts";
+import { encodeText } from "@/games/diag/codec.ts";
 import { SoundEncoder } from "@/lib/transports/sound/soundEncoder.ts";
 import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
 import { rasterize } from "@/lib/transports/qr/rasterize.ts";
@@ -13,14 +13,12 @@ const VIDEO_WIDTH = 640;
 const VIDEO_HEIGHT = 480;
 
 function fixtureFrames(): Uint8Array[] {
-  const envelope = {
+  return buildFrames({
     type: 0,
-    gameId: 0,
-    sessionId: 1,
+    session: 1,
     seq: 0,
-    payload: new TextEncoder().encode(TEXT),
-  };
-  return buildFrames(encodeEnvelope(envelope), 5);
+    payload: encodeText(TEXT),
+  });
 }
 
 async function microphoneWav(frames: Uint8Array[]): Promise<Uint8Array> {

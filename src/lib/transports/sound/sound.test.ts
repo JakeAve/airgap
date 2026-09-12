@@ -38,12 +38,17 @@ function decodeAll(
   return frames;
 }
 
-const message = new Uint8Array(30).map((_, i) => (i * 53 + 0x80) & 0xff);
+const message = {
+  type: 2,
+  seq: 1,
+  session: 77,
+  payload: new Uint8Array(8).map((_, i) => (i * 53 + 0x80) & 0xff),
+};
 
 Deno.test("sound round trip of a multi-frame message through 128-sample pushes", async () => {
   const encoder = await SoundEncoder.create();
   const decoder = await SoundDecoder.create();
-  const frames = buildFrames(message, 2);
+  const frames = buildFrames(message);
   const reassembler = new Reassembler();
   let result;
   for (const frame of frames) {
@@ -52,17 +57,17 @@ Deno.test("sound round trip of a multi-frame message through 128-sample pushes",
     assertEquals(decoded[0], frame);
     result = reassembler.push(decoded[0]);
   }
-  assertEquals(result!.message!.subarray(0, message.length), message);
+  assertEquals(result!.message, message);
   encoder.dispose();
   decoder.dispose();
 });
 
-Deno.test("a 16-byte frame is about half a second on fastest and survives noise", async () => {
+Deno.test("a frame is three ggwave slots on fastest and survives noise", async () => {
   const encoder = await SoundEncoder.create();
-  const frame = buildFrames(message.subarray(0, 8), 0)[0];
+  const frame = buildFrames(message)[0];
   const samples = encoder.encode(frame);
   const seconds = samples.length / SOUND_SAMPLE_RATE;
-  assert(seconds > 0.4 && seconds < 0.7, `got ${seconds}s`);
+  assert(seconds > 0.18 && seconds < 0.2, `got ${seconds}s`);
   const decoder = await SoundDecoder.create();
   assertEquals(decodeAll(decoder, withSilence(samples, 0.3), 4096), [frame]);
   encoder.dispose();
@@ -72,7 +77,7 @@ Deno.test("a 16-byte frame is about half a second on fastest and survives noise"
 Deno.test("every protocol decodes with a single decoder", async () => {
   const encoder = await SoundEncoder.create();
   const decoder = await SoundDecoder.create();
-  const frame = buildFrames(message, 1)[1];
+  const frame = buildFrames(message)[1];
   const protocols: SoundProtocol[] = [
     "fastest",
     "fast",

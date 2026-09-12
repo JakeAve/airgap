@@ -1,5 +1,3 @@
-import { PROTOCOL_VERSION } from "@/lib/protocol.ts";
-
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   navigator.serviceWorker.register("./sw.js").catch((err) => {
@@ -13,7 +11,7 @@ function render() {
   app.innerHTML = `
     <section class="card">
       <h2>No games yet</h2>
-      <p>Games will appear here. Protocol version ${PROTOCOL_VERSION}.</p>
+      <p>Games will appear here.</p>
       <p><a href="./diag.html">Transport diagnostics</a></p>
     </section>
   `;

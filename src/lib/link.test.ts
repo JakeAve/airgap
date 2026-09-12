@@ -1,7 +1,7 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { Link } from "./link.ts";
 import { aborted, type Transport, type TransportId } from "./transport.ts";
-import type { Envelope } from "@/lib/envelope/envelope.ts";
+import type { Message } from "@/lib/frames/frames.ts";
 
 /** In-memory transport: every frame sent is delivered to every receiver of the same bus. */
 class Bus {
@@ -29,12 +29,11 @@ class Bus {
   }
 }
 
-const envelope: Envelope = {
+const envelope: Message = {
   type: 2,
-  gameId: 7,
-  sessionId: 999,
+  session: 99,
   seq: 3,
-  payload: new Uint8Array(30).map((_, i) => i * 5),
+  payload: new Uint8Array(6).map((_, i) => i * 5),
 };
 
 Deno.test("a message sent over one transport is received over another", async () => {
@@ -102,16 +101,16 @@ Deno.test("unknown transports are refused", () => {
   assertEquals(threw, true);
 });
 
-Deno.test("envelopes the accept predicate rejects are skipped", async () => {
+Deno.test("messages the accept predicate rejects are skipped", async () => {
   const bus = new Bus();
   const own = new Link([bus.transport("sound")]);
   const peer = new Link([bus.transport("sound")]);
   const receiver = new Link([bus.transport("sound")]);
   const stop = new AbortController();
-  const echo: Envelope = { ...envelope, sessionId: 111 };
+  const echo: Message = { ...envelope, session: 111 };
 
   const received = receiver.receive(["sound"], stop.signal, {
-    accept: (e) => e.sessionId !== echo.sessionId,
+    accept: (e) => e.session !== echo.session,
   });
   const sendingEcho = own.send(echo, "sound", stop.signal);
   const sendingPeer = peer.send(envelope, "sound", stop.signal);

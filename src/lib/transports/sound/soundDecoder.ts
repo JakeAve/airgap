@@ -7,11 +7,12 @@ import {
 } from "./ggwave.ts";
 
 /**
- * ggwave keeps reporting a completed frame for the next few blocks while it is
- * still inside the analysis window. A frame lasts at least 24 blocks, so an
- * identical frame this soon is the same transmission, not a repeat.
+ * ggwave reports a completed frame again one transmit slot later while it is
+ * still inside the analysis window: up to 9 blocks on the normal protocols. A
+ * looped fastest frame repeats every 16 blocks with the default gap, so an
+ * identical frame inside this window is the same transmission, not a repeat.
  */
-const DUPLICATE_WINDOW_BLOCKS = 8;
+const DUPLICATE_WINDOW_BLOCKS = 12;
 
 /**
  * Feeds 48 kHz mono samples to ggwave and yields decoded frames. ggwave only

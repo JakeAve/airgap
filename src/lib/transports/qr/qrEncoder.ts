@@ -1,5 +1,5 @@
 import encodeQR, { type ErrorCorrection } from "qr";
-import { FRAME_BYTES, QR_MAX_FRAMES_PER_CODE } from "@/lib/protocol.ts";
+import { FRAME_BYTES, MAX_FRAMES_PER_MESSAGE } from "@/lib/protocol.ts";
 import { bytesToText, textToBytes } from "./bytesAsText.ts";
 
 /** Module grid, `matrix[y][x]` true for a dark module. No quiet zone. */
@@ -16,11 +16,11 @@ export class QrEncoder {
     this.#ecc = options.ecc ?? "medium";
   }
 
-  /** Packs up to QR_MAX_FRAMES_PER_CODE frames into one code. */
+  /** Packs a whole message's frames into one code. */
   encode(frames: Uint8Array[]): QrMatrix {
-    if (frames.length === 0 || frames.length > QR_MAX_FRAMES_PER_CODE) {
+    if (frames.length === 0 || frames.length > MAX_FRAMES_PER_MESSAGE) {
       throw new RangeError(
-        `expected 1..${QR_MAX_FRAMES_PER_CODE} frames, got ${frames.length}`,
+        `expected 1..${MAX_FRAMES_PER_MESSAGE} frames, got ${frames.length}`,
       );
     }
     const bytes = new Uint8Array(frames.length * FRAME_BYTES);
@@ -38,13 +38,4 @@ export class QrEncoder {
       textEncoder: textToBytes,
     });
   }
-}
-
-/** Splits a message's frames into as many codes as needed. */
-export function chunkFramesForQr(frames: Uint8Array[]): Uint8Array[][] {
-  const codes: Uint8Array[][] = [];
-  for (let i = 0; i < frames.length; i += QR_MAX_FRAMES_PER_CODE) {
-    codes.push(frames.slice(i, i + QR_MAX_FRAMES_PER_CODE));
-  }
-  return codes;
 }

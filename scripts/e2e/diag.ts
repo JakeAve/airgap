@@ -1,6 +1,6 @@
 // Drives the diagnostics page in headless Chromium with a fake microphone and
 // camera fed from fixtures.ts, so the whole path from device to decoded
-// envelope runs without hardware. Expects `deno task build` to have run.
+// message runs without hardware. Expects `deno task build` to have run.
 // Set CHROMIUM_PATH to use a Chromium outside Playwright's own cache.
 import { serveDir } from "@std/http";
 import { join } from "@std/path";

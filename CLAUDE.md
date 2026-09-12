@@ -57,11 +57,9 @@ committing.
   handle), `speaker.ts`, `microphone.ts`, `screen.ts`, `camera.ts`, and
   `soundTransport.ts` / `qrTransport.ts` implementing `Transport`
 - `src/lib/` — pure, tested modules shared by every game
-  - `protocol.ts` — wire protocol constants (version, frame layout, limits)
+  - `protocol.ts` — wire protocol constants (frame layout, limits)
   - `bits/` — `BitWriter`, `BitReader`, `crc8`
-  - `envelope/` — 5-byte message header codec (`encodeEnvelope`,
-    `decodeEnvelope`)
-  - `frames/` — `buildFrames`, `parseFrame`, `Reassembler`
+  - `frames/` — `Leg`, `Message`, `buildFrames`, `parseFrame`, `Reassembler`
   - `transports/sound/` — `SoundEncoder` (frame → float32 samples),
     `SoundDecoder` (samples → frames), `ggwave.ts` (module loader, shared
     parameters)
@@ -69,10 +67,11 @@ committing.
     image → frames), `rasterize.ts` (matrix → RGBA, used by tests and the screen
     adapter), `bytesAsText.ts`
   - `transport.ts` — `Transport` interface and abort helpers
-  - `link.ts` — `Link`: envelope in, frames out over one transport; frames in
-    over any transports, one envelope out
+  - `link.ts` — `Link`: message in, frames out over one transport; frames in
+    over any transports, one message out
   - `transports/codecWorkerProtocol.ts` — message types for the worker
-- `src/games/<game>/` — planned: `codec.ts`, `logic.ts`, `ui.ts` per game
+- `src/games/<game>/` — `codec.ts`, `logic.ts`, `ui.ts` per game. `diag/` is the
+  diagnostics page's game: free text at five bits a character
 - `scripts/` — Deno scripts (`build.ts`, `dev.ts` with optional HTTPS from
   `.certs/`, `e2e/` Playwright run against fake devices)
 - `types/` — hand-written declarations for untyped npm packages
@@ -82,29 +81,34 @@ committing.
 
 ## Architecture
 
-Games speak typed messages to a single `Link`. The Link wraps them in an
-envelope, splits the envelope into fixed-size frames, and hands frames to
-whichever transport the user picked. Transports only move frames, so a receiver
-can collect frames from sound and QR interchangeably and the reassembler does
-not care which delivered them.
+Games hand a `Message` (a leg plus a payload of up to 8 bytes) to a single
+`Link`. The Link splits it into fixed-size frames and hands them to whichever
+transport the user picked. Transports only move frames, so a receiver can
+collect frames from sound and QR interchangeably and the reassembler does not
+care which delivered them.
 
-- **Envelope** (40 bits): version 3 | type 3 | gameId 6 | sessionId 12 | seq 6 |
-  length 10, then the payload. Length is what trims frame padding.
-- **Frame** (`FRAME_BYTES` = 16): header 2 bytes (msgId 4 | index 6 | total-1 6)
-  | payload 13 | crc8. Up to 64 frames per message, so 832 bytes.
+- **Frame** (`FRAME_BYTES` = 5, 40 bits): type 2 | seq 2 | session 8 | index 2 |
+  total-1 2 | payload 16 | crc8. Every frame names its leg, so a receiver
+  filters frames before reassembly and retries of one leg add up. Up to 4 frames
+  per message, so 8 payload bytes. There is no version or length field: a
+  different layout never decodes, and each game's codec knows where its data
+  ends (received payloads are zero-padded to whole frames).
+- **Why 5 bytes:** ggwave costs one transmit slot per 3 bytes of frame plus
+  Reed-Solomon (`max(4, 2*floor(L/5))` bytes), so 5 is the largest frame that
+  fits 3 slots. Shrinking bytes inside a slot saves nothing.
 - **Sound:** ggwave in fixed-length payload mode, one frame per transmission,
   AUDIBLE_FASTEST by default with FAST as the fallback. Fixed-length mode has no
-  start/end markers, so decoding is continuous; the CRC rejects false positives.
-  Sending will loop the frame sequence until stopped; there is no back channel.
-- **QR:** up to `QR_MAX_FRAMES_PER_CODE` (32) frames concatenated per code, byte
-  mode with a latin1 text hook so bytes are not UTF-8 expanded. Longer messages
-  cycle through several codes.
+  start/end markers, so decoding is continuous; the CRC and the leg fields
+  reject false positives. Sending will loop the frame sequence until stopped;
+  there is no back channel.
+- **QR:** a whole message in one code, byte mode with a latin1 text hook so
+  bytes are not UTF-8 expanded.
 - Decoders and the sound encoder run in the codec worker, so the main bundle
   carries no ggwave. The AudioWorklet forwards sample blocks; the camera loop
   posts downscaled ImageData and waits for each decode before grabbing the next
   frame. Both decoders share a `push(chunk)` interface returning frames.
 - Sending loops the frame sequence until its abort signal fires; receiving
-  resolves on the first complete envelope and then stops every transport it
+  resolves on the first complete message and then stops every transport it
   opened.
 
 ## Wire-protocol facts worth remembering
@@ -114,10 +118,11 @@ not care which delivered them.
   bytes. Passing a `Float32Array` throws; passing a string corrupts the data.
 - ggwave only consumes whole blocks of `SOUND_SAMPLES_PER_BLOCK` (1024) samples
   and silently drops shorter pushes; `SoundDecoder` buffers for you.
-- In fixed-length mode ggwave reports a completed frame again for the next two
-  or three blocks; `SoundDecoder` suppresses those echoes.
+- In fixed-length mode ggwave reports a completed frame again one transmit slot
+  later, up to 9 blocks on NORMAL; `SoundDecoder` suppresses those echoes within
+  12 blocks, so identical frames must be sent further apart than that.
 - `rxToggleProtocol` is global to the module, not per instance.
-- A 16-byte frame is 0.51 s on AUDIBLE_FASTEST, 1.02 s on FAST, 1.54 s on NORMAL
+- A 5-byte frame is 0.19 s on AUDIBLE_FASTEST, 0.38 s on FAST, 0.58 s on NORMAL
   at 48 kHz. Variable-length mode would add ~0.75 s of markers.
 - iOS Safari needs a user gesture to start an `AudioContext`; a camera grant
   does not count. Installed home-screen apps re-prompt for camera access on

@@ -1,8 +1,9 @@
 // Diagnostic page: exercises the transports end to end on real devices.
 import { Link } from "@/lib/link.ts";
 import type { TransportId } from "@/lib/transport.ts";
-import { encodeEnvelope, type Envelope } from "@/lib/envelope/envelope.ts";
-import { buildFrames } from "@/lib/frames/frames.ts";
+import { buildFrames, type Leg, type Message } from "@/lib/frames/frames.ts";
+import { MAX_SEQ, MAX_SESSION } from "@/lib/protocol.ts";
+import { decodeText, encodeText } from "@/games/diag/codec.ts";
 import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
 import { CodecWorker } from "@/adapters/codecWorker.ts";
 import { SoundTransport } from "@/adapters/soundTransport.ts";
@@ -18,14 +19,13 @@ const log = (line: string) => {
 };
 
 const SECONDS_PER_FRAME: Record<SoundProtocol, number> = {
-  fastest: 0.51,
-  fast: 1.02,
-  normal: 1.54,
-  "ultrasound-fastest": 0.51,
-  "ultrasound-fast": 1.02,
-  "ultrasound-normal": 1.54,
+  fastest: 0.19,
+  fast: 0.38,
+  normal: 0.58,
+  "ultrasound-fastest": 0.19,
+  "ultrasound-fast": 0.38,
+  "ultrasound-normal": 0.58,
 };
-const DIAG_GAME_ID = 0;
 
 /** Handshake phase, and the only thing that tells a message from our own echo. */
 const CALL = 0;
@@ -34,7 +34,7 @@ const ACK = 2;
 /** The last ack can never itself be acked, so it goes out a fixed few times. */
 const ACK_PASSES = 2;
 /** Ours for this page load, so a message we hear ourselves is recognisable. Never 1, which the e2e fixtures use for the peer. */
-const SESSION_ID = 2 + Math.floor(Math.random() * 4094);
+const SESSION_ID = 2 + Math.floor(Math.random() * (MAX_SESSION - 1));
 
 let link: Link | undefined;
 let sound: SoundTransport | undefined;
@@ -44,13 +44,12 @@ let turning: AbortController | undefined;
 let seq = 0;
 let selfSuppressed = 0;
 
-function textEnvelope(text: string, type = CALL, at?: number): Envelope {
+function textMessage(text: string, type = CALL, at?: number): Message {
   return {
     type,
-    gameId: DIAG_GAME_ID,
-    sessionId: SESSION_ID,
-    seq: at ?? (seq++ & 63),
-    payload: new TextEncoder().encode(text),
+    session: SESSION_ID,
+    seq: at ?? (seq++ & MAX_SEQ),
+    payload: encodeText(text),
   };
 }
 
@@ -58,15 +57,12 @@ function updateEstimate() {
   const text = $<HTMLInputElement>("send-text").value;
   const via = $<HTMLSelectElement>("send-via").value as TransportId;
   const protocol = $<HTMLSelectElement>("send-protocol").value as SoundProtocol;
-  const frames = buildFrames(encodeEnvelope(textEnvelope(text)), 0).length;
-  seq--;
+  const frames = buildFrames(textMessage(text, CALL, 0)).length;
   const estimate = via === "sound"
     ? `${frames} frame${frames === 1 ? "" : "s"}, about ${
       (frames * (SECONDS_PER_FRAME[protocol] + 0.15)).toFixed(1)
     } s per pass`
-    : `${frames} frame${frames === 1 ? "" : "s"} in ${
-      Math.ceil(frames / 32)
-    } code${frames > 32 ? "s" : ""}`;
+    : `${frames} frame${frames === 1 ? "" : "s"} in one code`;
   $("send-estimate").textContent = estimate;
 }
 
@@ -113,7 +109,7 @@ async function send() {
   $<HTMLButtonElement>("send-stop").disabled = false;
   log(`sending ${text.length} chars via ${via}`);
   try {
-    await link.send(textEnvelope(text), via, sending.signal);
+    await link.send(textMessage(text), via, sending.signal);
   } catch (err) {
     log(`send failed: ${err}`);
   } finally {
@@ -124,15 +120,15 @@ async function send() {
 }
 
 /** Anything carrying our own session id is our own speaker coming back at us. */
-function notOurs(envelope: Envelope): boolean {
-  if (envelope.sessionId !== SESSION_ID) return true;
+function notOurs(leg: Leg): boolean {
+  if (leg.session !== SESSION_ID) return true;
   selfSuppressed++;
   $("self-suppressed").textContent = String(selfSuppressed);
-  log(`ignored our own message (seq ${envelope.seq})`);
+  log(`ignored our own frame (seq ${leg.seq})`);
   return false;
 }
 
-async function receive(via: TransportId[]): Promise<Envelope | undefined> {
+async function receive(via: TransportId[]): Promise<Message | undefined> {
   if (!link) return undefined;
   receiving = new AbortController();
   for (
@@ -147,7 +143,7 @@ async function receive(via: TransportId[]): Promise<Envelope | undefined> {
   log(`receiving via ${via.join(" + ")}`);
   const started = performance.now();
   try {
-    const envelope = await link.receive(via, receiving.signal, {
+    const message = await link.receive(via, receiving.signal, {
       onProgress: (p) => {
         $("receive-progress").textContent =
           `frames ${p.received} of ${p.total}`;
@@ -159,13 +155,13 @@ async function receive(via: TransportId[]): Promise<Envelope | undefined> {
       },
       accept: notOurs,
     });
-    const text = new TextDecoder().decode(envelope.payload);
+    const text = decodeText(message.payload);
     $("received-text").textContent = text;
     $("receive-progress").textContent = `done in ${
       ((performance.now() - started) / 1000).toFixed(2)
     } s`;
-    log(`received "${text}" (seq ${envelope.seq})`);
-    return envelope;
+    log(`received "${text}" (seq ${message.seq})`);
+    return message;
   } catch (err) {
     $("receive-progress").textContent = receiving.signal.aborted
       ? "stopped"
@@ -210,8 +206,8 @@ async function exchange() {
 async function listenFor(
   via: TransportId[],
   ms: number,
-  want?: (envelope: Envelope) => boolean,
-): Promise<Envelope | undefined> {
+  want?: (leg: Leg) => boolean,
+): Promise<Message | undefined> {
   if (!link) return undefined;
   const stop = new AbortController();
   const timer = Number.isFinite(ms)
@@ -275,12 +271,11 @@ async function handshake() {
   await sound.listen();
   const text = $<HTMLInputElement>("send-text").value;
   const round = 0;
-  const mine = (type: number) => textEnvelope(text, type, round);
+  const mine = (type: number) => textMessage(text, type, round);
   const ackOnly = { ...mine(ACK), payload: new Uint8Array() };
 
   const frameMs = SECONDS_PER_FRAME[sound.protocol] * 1000 + sound.gapMs;
-  const passMs = (e: Envelope) =>
-    buildFrames(encodeEnvelope(e), 0).length * frameMs;
+  const passMs = (m: Message) => buildFrames(m).length * frameMs;
   const replyWindow = turnaroundMs + passMs(mine(REPLY)) + guardMs;
   const ackWindow = turnaroundMs + passMs(ackOnly) + guardMs;
 
@@ -291,8 +286,8 @@ async function handshake() {
   $("received-text").textContent = "";
   const started = performance.now();
   const at = () => ((performance.now() - started) / 1000).toFixed(2);
-  const show = (e: Envelope) => {
-    $("received-text").textContent = new TextDecoder().decode(e.payload);
+  const show = (m: Message) => {
+    $("received-text").textContent = decodeText(m.payload);
   };
 
   log(
