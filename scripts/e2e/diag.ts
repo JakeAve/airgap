@@ -10,13 +10,12 @@ import { TEXT, writeFixtures } from "./fixtures.ts";
 const ROOT = new URL("../..", import.meta.url).pathname;
 const DIST = join(ROOT, "dist");
 const BASE_PATH = "/airgap";
-const PORT = 8765;
 
 const fixtures = await writeFixtures(
   await Deno.makeTempDir({ prefix: "airgap-e2e-" }),
 );
 
-const server = Deno.serve({ port: PORT, onListen() {} }, (req) => {
+const server = Deno.serve({ port: 0, onListen() {} }, (req) => {
   const url = new URL(req.url);
   if (!url.pathname.startsWith(`${BASE_PATH}/`)) {
     return new Response("not found", { status: 404 });
@@ -27,6 +26,8 @@ const server = Deno.serve({ port: PORT, onListen() {} }, (req) => {
     quiet: true,
   });
 });
+
+const PORT = server.addr.port;
 
 const browser = await chromium.launch({
   executablePath: Deno.env.get("CHROMIUM_PATH"),
