@@ -69,11 +69,19 @@ Deno.test("a 16-byte frame is about half a second on fastest and survives noise"
   decoder.dispose();
 });
 
-Deno.test("every audible protocol decodes with a single decoder", async () => {
+Deno.test("every protocol decodes with a single decoder", async () => {
   const encoder = await SoundEncoder.create();
   const decoder = await SoundDecoder.create();
   const frame = buildFrames(message, 1)[1];
-  for (const protocol of ["fastest", "fast", "normal"] as SoundProtocol[]) {
+  const protocols: SoundProtocol[] = [
+    "fastest",
+    "fast",
+    "normal",
+    "ultrasound-fastest",
+    "ultrasound-fast",
+    "ultrasound-normal",
+  ];
+  for (const protocol of protocols) {
     encoder.protocol = protocol;
     assertEquals(decodeAll(decoder, withSilence(encoder.encode(frame)), 1024), [
       frame,

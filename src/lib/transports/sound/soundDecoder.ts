@@ -33,9 +33,6 @@ export class SoundDecoder {
     const ids = g.ProtocolId;
     for (
       const id of [
-        ids.GGWAVE_PROTOCOL_ULTRASOUND_NORMAL,
-        ids.GGWAVE_PROTOCOL_ULTRASOUND_FAST,
-        ids.GGWAVE_PROTOCOL_ULTRASOUND_FASTEST,
         ids.GGWAVE_PROTOCOL_DT_NORMAL,
         ids.GGWAVE_PROTOCOL_DT_FAST,
         ids.GGWAVE_PROTOCOL_DT_FASTEST,

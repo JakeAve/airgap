@@ -14,7 +14,13 @@ import {
 
 export type { GgwaveInstance, GgwaveModule, GgwaveProtocolId };
 
-export type SoundProtocol = "fastest" | "fast" | "normal";
+export type SoundProtocol =
+  | "fastest"
+  | "fast"
+  | "normal"
+  | "ultrasound-fastest"
+  | "ultrasound-fast"
+  | "ultrasound-normal";
 
 let modulePromise: Promise<GgwaveModule> | undefined;
 
@@ -58,6 +64,12 @@ export function protocolId(
       return g.ProtocolId.GGWAVE_PROTOCOL_AUDIBLE_FAST;
     case "normal":
       return g.ProtocolId.GGWAVE_PROTOCOL_AUDIBLE_NORMAL;
+    case "ultrasound-fastest":
+      return g.ProtocolId.GGWAVE_PROTOCOL_ULTRASOUND_FASTEST;
+    case "ultrasound-fast":
+      return g.ProtocolId.GGWAVE_PROTOCOL_ULTRASOUND_FAST;
+    case "ultrasound-normal":
+      return g.ProtocolId.GGWAVE_PROTOCOL_ULTRASOUND_NORMAL;
   }
 }
 
@@ -65,4 +77,15 @@ export const AUDIBLE_PROTOCOLS: readonly SoundProtocol[] = [
   "fastest",
   "fast",
   "normal",
+];
+
+/**
+ * The ~15-19.5 kHz band. Same bitrate as the audible protocols and inaudible to
+ * most adults, but phone speakers and microphones roll off hard up there, so
+ * range is short and some devices cannot carry it at all.
+ */
+export const ULTRASOUND_PROTOCOLS: readonly SoundProtocol[] = [
+  "ultrasound-fastest",
+  "ultrasound-fast",
+  "ultrasound-normal",
 ];

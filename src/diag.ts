@@ -21,6 +21,9 @@ const SECONDS_PER_FRAME: Record<SoundProtocol, number> = {
   fastest: 0.51,
   fast: 1.02,
   normal: 1.54,
+  "ultrasound-fastest": 0.51,
+  "ultrasound-fast": 1.02,
+  "ultrasound-normal": 1.54,
 };
 const DIAG_GAME_ID = 0;
 
