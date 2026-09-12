@@ -58,6 +58,14 @@ Deno.test("sound and qr frames are interchangeable in one reassembly", () => {
   assertEquals(r.push(frames[2]).message, message(6));
 });
 
+Deno.test("the code decodes in the site's colours and in plain black on white", () => {
+  const frames = buildFrames(message(4));
+  const matrix = new QrEncoder().encode(frames);
+  assertEquals(new QrDecoder().push(rasterize(matrix, 4, 4)), frames);
+  const plain = { module: "#000000", background: "#ffffff" };
+  assertEquals(new QrDecoder().push(rasterize(matrix, 4, 4, plain)), frames);
+});
+
 Deno.test("images without our frames decode to nothing", () => {
   const blank = {
     width: 64,

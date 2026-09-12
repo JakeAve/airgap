@@ -1,4 +1,5 @@
 import type { QrMatrix } from "@/lib/transports/qr/qrEncoder.ts";
+import { QR_COLORS } from "@/lib/transports/qr/rasterize.ts";
 import { aborted } from "@/lib/transport.ts";
 
 const QUIET_MODULES = 4;
@@ -11,9 +12,9 @@ export function drawQr(matrix: QrMatrix, canvas: HTMLCanvasElement): void {
   canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas 2d context unavailable");
-  ctx.fillStyle = "#fff";
+  ctx.fillStyle = QR_COLORS.background;
   ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = "#000";
+  ctx.fillStyle = QR_COLORS.module;
   for (let y = 0; y < modules; y++) {
     for (let x = 0; x < modules; x++) {
       if (!matrix[y][x]) continue;

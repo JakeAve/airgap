@@ -4,9 +4,25 @@
     {
       "name": "dev",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "PORT=8443 deno task dev"],
+      "runtimeArgs": [
+        "-c",
+        "PORT=8443 deno task dev"
+      ],
       "port": 8443,
       "url": "https://localhost:8443"
+    },
+    {
+      "name": "http",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": [
+        "run",
+        "-A",
+        "jsr:@std/http/file-server",
+        "dist",
+        "--port",
+        "8010"
+      ],
+      "port": 8010
     }
   ]
 }

@@ -3,20 +3,30 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0b" />
     <title>Airgap diagnostics</title>
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="site-header">
-      <h1><a href="./">Airgap</a> diagnostics</h1>
+    <header class="site-header compact">
+      <h1><a href="./">Airgap</a><span class="label tx">Diagnostics</span></h1>
       <p
         class="tagline">Send a test message between two devices by sound or QR.</p>
     </header>
     <main class="stack">
       <section class="card">
-        <h2>Device</h2>
+        <div class="card-head">
+          <h2>Device</h2>
+          <span class="mono muted">standby</span>
+        </div>
         <dl class="facts">
           <dt>Audio sample rate</dt>
           <dd id="sample-rate">–</dd>
@@ -29,11 +39,16 @@
           <dt>Own messages ignored</dt>
           <dd id="self-suppressed">0</dd>
         </dl>
-        <button id="start">Start</button>
+        <div class="row">
+          <button id="start" class="tx">Start</button>
+        </div>
       </section>
 
-      <section class="card" id="send-card" hidden>
-        <h2>Send</h2>
+      <section class="card tx" id="send-card" hidden>
+        <div class="card-head">
+          <h2>Send</h2>
+          <span class="mono muted">tx</span>
+        </div>
         <label>Message <input id="send-text" value="hello airgap" maxlength="12" /></label>
         <div class="row">
           <label>Via
@@ -53,21 +68,24 @@
             </select>
           </label>
         </div>
-        <p id="send-estimate" class="muted"></p>
+        <p id="send-estimate" class="mono muted"></p>
         <div class="row">
-          <button id="send">Send</button>
+          <button id="send" class="tx">Send</button>
           <button id="send-stop" disabled>Stop</button>
         </div>
         <canvas id="qr-canvas" class="qr"></canvas>
       </section>
 
-      <section class="card" id="receive-card" hidden>
-        <h2>Receive</h2>
+      <section class="card rx" id="receive-card" hidden>
+        <div class="card-head">
+          <h2>Receive</h2>
+          <span class="mono muted">rx</span>
+        </div>
         <div class="row">
-          <button id="listen">Listen</button>
-          <button id="scan">Scan</button>
-          <button id="receive-both">Both</button>
-          <button id="exchange">Send + receive at once</button>
+          <button id="listen" class="rx">Listen</button>
+          <button id="scan" class="rx">Scan</button>
+          <button id="receive-both" class="ghost-rx">Both</button>
+          <button id="exchange" class="ghost-rx">Send + receive at once</button>
           <button id="receive-stop" disabled>Stop</button>
         </div>
         <div class="row">
@@ -83,15 +101,20 @@
           <label>Guard ms
             <input id="guard-ms" type="number" value="500" min="0" step="100" />
           </label>
-          <button id="handshake">Handshake</button>
+          <button id="handshake" class="ghost-rx">Handshake</button>
         </div>
-        <p id="receive-progress" class="muted">idle</p>
-        <p>Received: <strong id="received-text"></strong></p>
+        <div class="readout">
+          <p id="receive-progress" class="status">idle</p>
+          <p class="value">Received <strong id="received-text"></strong></p>
+        </div>
         <video id="camera" class="camera" hidden></video>
       </section>
 
       <section class="card">
-        <h2>Log</h2>
+        <div class="card-head">
+          <h2>Log</h2>
+          <span class="mono muted">utc</span>
+        </div>
         <pre id="log" class="log"></pre>
       </section>
     </main>
