@@ -286,6 +286,8 @@ async function handshake() {
   sound.protocol = protocol();
   const canvas = $<HTMLCanvasElement>("handshake-qr");
   canvas.hidden = true;
+  $("stage").hidden = !byQr;
+  button("stage-stop").textContent = "Stop";
   turning = new AbortController();
   busy("handshake-stop", true);
   try {
@@ -323,13 +325,17 @@ async function handshake() {
     listenFor(via, ms, want);
 
   $("handshake-received").textContent = "";
+  $("stage-received").textContent = "";
   const started = performance.now();
   const at = () => ((performance.now() - started) / 1000).toFixed(2);
   const status = (s: string) => {
     $("handshake-progress").textContent = s;
+    $("stage-status").textContent = s;
   };
   const show = (m: Message) => {
-    $("handshake-received").textContent = decodeText(m.payload);
+    const text = decodeText(m.payload);
+    $("handshake-received").textContent = text;
+    $("stage-received").textContent = text;
   };
 
   log(
@@ -397,6 +403,7 @@ async function handshake() {
     turning.abort();
     sound.maxPasses = Infinity;
     busy("handshake-stop", false);
+    button("stage-stop").textContent = "Close";
     syncDevices();
   }
 }
@@ -435,5 +442,9 @@ button("receive-both").onclick = () => receive(["sound", "qr"]);
 button("receive-stop").onclick = () => receiving?.abort();
 button("handshake").onclick = handshake;
 button("handshake-stop").onclick = () => turning?.abort();
+button("stage-stop").onclick = () => {
+  turning?.abort();
+  $("stage").hidden = true;
+};
 for (const id of ["send-text", "send-protocol"]) $(id).oninput = updateSend;
 updateSend();

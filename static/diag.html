@@ -92,7 +92,6 @@
           <span class="mono muted">turns</span>
         </div>
         <label>Message <input id="handshake-text" value="hello airgap" maxlength="12" /></label>
-        <canvas id="handshake-qr" class="qr" hidden></canvas>
         <div class="row">
           <label>Via
             <select id="handshake-via">
@@ -133,6 +132,14 @@
         <pre id="log" class="log"></pre>
       </section>
     </main>
+    <div id="stage" class="stage" hidden>
+      <canvas id="handshake-qr" class="qr"></canvas>
+      <p class="mono">
+        <span id="stage-status" class="rx-text">idle</span>
+        <strong id="stage-received"></strong>
+      </p>
+      <button id="stage-stop">Stop</button>
+    </div>
     <script type="module" src="./diag.js"></script>
   </body>
 </html>

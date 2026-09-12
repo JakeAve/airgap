@@ -165,7 +165,9 @@ try {
       { timeout: 10_000 },
     );
     const replyShown = await page.evaluate(() =>
-      document.querySelector("#handshake-qr")?.hasAttribute("hidden") === false
+      document.querySelector("#handshake-qr")?.hasAttribute("hidden") ===
+        false &&
+      document.querySelector("#stage")?.hasAttribute("hidden") === false
     );
     if (replyShown) console.log("handshake: heard the call and answered it");
     else failures.push("handshake: reply was not put on screen as a code");
@@ -174,7 +176,7 @@ try {
       `handshake: ${await page.textContent("#handshake-progress")}`,
     );
   }
-  await page.click("#handshake-stop");
+  await page.click("#stage-stop");
 } finally {
   await browser.close();
   await server.shutdown();
