@@ -604,46 +604,137 @@ body:has(.camera:not([hidden])) {
   padding-bottom: 50vh;
 }
 
-/* The exchange screen: the leg we are showing on top, the peer's screen below. */
-.stage {
-  position: fixed;
-  z-index: 10;
-  inset: 0 0 50vh;
-  display: grid;
-  grid-template-rows: 1fr auto auto;
-  justify-items: center;
+/* The exchange screen: the camera fills the page, the code floats on it. */
+
+body.viewfinder {
+  height: 100dvh;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewfinder .camera {
+  inset: 0;
+  height: 100%;
+  z-index: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.vf-head,
+.vf-code,
+.vf-middle,
+.vf-foot {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.vf-head {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
-  padding: 1rem;
-  background: var(--bg);
+  min-height: 56px;
+  padding: 0 1rem;
+  background: rgba(10, 10, 11, 0.8);
 }
 
-.stage .qr {
-  width: min(100vw - 2rem, 50vh - 8rem);
+.vf-head h1 {
   margin: 0;
+  font-family: var(--font-mark);
+  font-weight: 700;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 2px #fff3dc,
+    0 0 14px rgba(var(--tx-rgb), 0.9),
+    0 0 44px rgba(var(--tx-rgb), 0.5);
 }
 
-.stage p {
+.vf-head h1 a {
+  color: inherit;
+}
+
+.vf-head h1 .label {
+  vertical-align: 0.5em;
+  margin-left: 0.5rem;
+}
+
+.vf-code {
+  width: min(220px, 60vw);
+  margin: 1rem auto 0;
+}
+
+.vf-middle {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1rem;
+}
+
+.vf-middle p {
   margin: 0;
   text-align: center;
 }
 
-.stage .rx-text {
+.vf-flip {
+  margin-top: auto;
+  align-self: flex-end;
+  background: rgba(10, 10, 11, 0.7);
+}
+
+.vf-foot {
+  background: rgba(8, 8, 10, 0.9);
+  border-top: 1px solid var(--line);
+}
+
+.vf-status {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 44px;
+  padding: 0 1rem;
+}
+
+.vf-status #status {
+  flex-grow: 1;
+}
+
+.vf-foot summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1rem;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.vf-foot .log {
+  max-height: 40vh;
+  padding: 0 1rem 1rem;
+}
+
+.rx-text {
   color: var(--rx);
+  text-shadow: 0 0 8px rgba(var(--rx-rgb), 0.75);
 }
 
-.stage.done {
-  inset: 0;
-  grid-template-rows: auto 1fr auto;
-  align-items: stretch;
-  justify-items: stretch;
+.tx-text {
+  color: var(--tx);
+  text-shadow: 0 0 8px rgba(var(--tx-rgb), 0.75);
 }
 
-.stage.done button {
-  justify-self: center;
-}
-
-.stage.done .log {
+.log {
   width: 100%;
   min-height: 0;
   max-height: none;

@@ -86,46 +86,52 @@
         <button id="flip" class="ghost-rx camera-flip" hidden>⇄ Flip</button>
       </section>
 
-      <section class="card">
+      <form class="card" action="./handshake.html" method="get">
         <div class="card-head">
           <h2>Handshake</h2>
-          <span class="mono muted">turns</span>
+          <span class="mono muted">opens the exchange screen</span>
         </div>
-        <label>Message <input id="handshake-text" value="hello airgap" maxlength="12" /></label>
+        <label>Message <input name="text" value="hello airgap" maxlength="12" /></label>
         <div class="row">
           <label>Via
-            <select id="handshake-via">
+            <select name="via">
               <option value="both">sound + QR</option>
               <option value="sound">sound</option>
               <option value="qr">QR</option>
             </select>
           </label>
           <label>Turns as
-            <select id="turn-role">
+            <select name="role">
               <option value="host">host (calls)</option>
               <option value="guest">guest (answers)</option>
             </select>
           </label>
-          <label>Turnaround ms
-            <input id="turnaround-ms" type="number" inputmode="numeric" pattern="[0-9]*" value="50" min="0" step="10" />
-          </label>
-          <label>Guard ms
-            <input id="guard-ms" type="number" inputmode="numeric" pattern="[0-9]*" value="100" min="0" step="10" />
-          </label>
-          <label>Retries
-            <input id="retries" type="number" inputmode="numeric" pattern="[0-9]*" value="5" min="1" step="1" />
+          <label>Sound protocol
+            <select name="protocol">
+              <option value="fastest">fastest</option>
+              <option value="fast">fast</option>
+              <option value="normal">normal</option>
+              <option value="ultrasound-fastest">ultrasound fastest</option>
+              <option value="ultrasound-fast">ultrasound fast</option>
+              <option value="ultrasound-normal">ultrasound normal</option>
+            </select>
           </label>
         </div>
         <div class="row">
-          <button id="handshake" class="tx">Handshake</button>
-          <button id="handshake-stop" disabled>Stop</button>
+          <label>Turnaround ms
+            <input name="turnaround" type="number" inputmode="numeric" pattern="[0-9]*" value="50" min="0" step="10" />
+          </label>
+          <label>Guard ms
+            <input name="guard" type="number" inputmode="numeric" pattern="[0-9]*" value="100" min="0" step="10" />
+          </label>
+          <label>Retries
+            <input name="retries" type="number" inputmode="numeric" pattern="[0-9]*" value="5" min="1" step="1" />
+          </label>
         </div>
-        <div class="readout">
-          <p id="handshake-progress" class="status">idle</p>
-          <p
-            class="value">Received <strong id="handshake-received"></strong></p>
+        <div class="row">
+          <button class="tx" type="submit">Handshake</button>
         </div>
-      </section>
+      </form>
 
       <section class="card">
         <div class="card-head">
@@ -135,15 +141,6 @@
         <pre id="log" class="log"></pre>
       </section>
     </main>
-    <div id="stage" class="stage" hidden>
-      <canvas id="handshake-qr" class="qr"></canvas>
-      <p class="mono">
-        <span id="stage-status" class="rx-text">idle</span>
-        <strong id="stage-received"></strong>
-      </p>
-      <pre id="stage-log" class="log" hidden></pre>
-      <button id="stage-stop">Stop</button>
-    </div>
     <script type="module" src="./diag.js"></script>
   </body>
 </html>

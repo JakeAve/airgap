@@ -142,12 +142,13 @@ try {
   await page.click("#play-stop");
 
   // The fixture message is a CALL, so a guest-role handshake should hear it and
-  // answer. There is no peer to ack, so it can only get as far as replying:
-  // over sound, with the reply also on screen as a code.
-  await page.selectOption("#turn-role", "guest");
-  await page.selectOption("#handshake-via", "both");
-  await page.fill("#retries", "2");
-  await page.click("#handshake");
+  // answer, over sound with the reply also on screen as a code. With nobody to
+  // ack, it gives up after its retries with the devices released, and Continue
+  // goes on to the next page.
+  await page.goto(
+    `http://localhost:${PORT}${BASE_PATH}/handshake.html?role=guest&via=both&retries=2`,
+  );
+  await page.click("#start");
   try {
     await page.waitForFunction(
       () =>
@@ -160,47 +161,29 @@ try {
     await page.waitForFunction(
       () =>
         document.querySelector("#log")?.textContent?.includes(
-          "reply 1: transmitting",
-        ) === true,
+            "reply 1: transmitting",
+          ) === true &&
+        document.querySelector("#code")?.hasAttribute("hidden") === false,
       null,
       { timeout: 10_000 },
     );
-    const replyShown = await page.evaluate(() =>
-      document.querySelector("#handshake-qr")?.hasAttribute("hidden") ===
-        false &&
-      document.querySelector("#stage")?.hasAttribute("hidden") === false
+    console.log("handshake: heard the call and answered it");
+    await page.waitForFunction(
+      () =>
+        (document.querySelector("#outcome")?.textContent ?? "").startsWith(
+          "failed: no ack to",
+        ) &&
+        document.querySelector("#camera")?.hasAttribute("hidden") === true &&
+        document.querySelector("#continue")?.hasAttribute("hidden") === false,
+      null,
+      { timeout: 60_000 },
     );
-    if (replyShown) console.log("handshake: heard the call and answered it");
-    else failures.push("handshake: reply was not put on screen as a code");
+    await page.click("#continue");
+    await page.waitForURL(/diag\.html$/, { timeout: 10_000 });
+    console.log("handshake: gave up after its retries, devices off, continued");
   } catch {
-    failures.push(
-      `handshake: ${await page.textContent("#handshake-progress")}`,
-    );
+    failures.push(`handshake: ${await page.textContent("#status")}`);
   }
-  // With nobody to ack, the guest gives up after its retries and lands on the
-  // done screen with the devices released; Close dismisses it.
-  await page.waitForFunction(
-    () =>
-      document.querySelector("#stage")?.classList.contains("done") &&
-      (document.querySelector("#stage-status")?.textContent ?? "").startsWith(
-        "failed: no ack to",
-      ) &&
-      document.querySelector("#mic")?.textContent === "Turn on mic" &&
-      document.querySelector("#cam")?.textContent === "Turn on camera" &&
-      document.querySelector("#camera")?.hasAttribute("hidden") === true &&
-      (document.querySelector("#stage-log")?.textContent ?? "").includes(
-        "call heard at",
-      ),
-    null,
-    { timeout: 60_000 },
-  );
-  await page.click("#stage-stop");
-  const dismissed = await page.evaluate(() =>
-    document.querySelector("#stage")?.hasAttribute("hidden") === true
-  );
-  if (dismissed) {
-    console.log("handshake: gave up after its retries, devices off");
-  } else failures.push("handshake: done screen did not close");
 } finally {
   await browser.close();
   await server.shutdown();

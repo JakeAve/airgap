@@ -1,64 +1,46 @@
 // Diagnostic page: exercises the transports end to end on real devices.
-import { Link } from "@/lib/link.ts";
 import type { TransportId } from "@/lib/transport.ts";
 import { buildFrames, type Leg, type Message } from "@/lib/frames/frames.ts";
-import { MAX_SEQ, MAX_SESSION } from "@/lib/protocol.ts";
+import { MAX_SEQ } from "@/lib/protocol.ts";
 import { decodeText, encodeText } from "@/games/diag/codec.ts";
 import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
 import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
-import { CodecWorker } from "@/adapters/codecWorker.ts";
-import { SoundTransport } from "@/adapters/soundTransport.ts";
-import { QrTransport } from "@/adapters/qrTransport.ts";
 import { drawQr } from "@/adapters/screen.ts";
+import {
+  newSessionId,
+  openLink,
+  type PageLink,
+  SECONDS_PER_FRAME,
+} from "@/adapters/pageLink.ts";
 
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const button = (id: string) => $<HTMLButtonElement>(id);
 const value = (id: string) => $<HTMLInputElement>(id).value;
 
-/** Lines logged while a handshake runs, for its done screen. */
-let handshakeLog: string[] | undefined;
-
 const log = (line: string) => {
-  const stamped = `${new Date().toISOString().slice(11, 23)} ${line}`;
-  handshakeLog?.push(stamped);
   const el = $<HTMLPreElement>("log");
-  el.textContent += `${stamped}\n`;
+  el.textContent += `${new Date().toISOString().slice(11, 23)} ${line}\n`;
   el.scrollTop = el.scrollHeight;
 };
 
-const SECONDS_PER_FRAME: Record<SoundProtocol, number> = {
-  fastest: 0.19,
-  fast: 0.38,
-  normal: 0.58,
-  "ultrasound-fastest": 0.19,
-  "ultrasound-fast": 0.38,
-  "ultrasound-normal": 0.58,
-};
-
-/** Handshake phase, and the only thing that tells a message from our own echo. */
+/** Every message here is a plain call; the handshake page owns the other legs. */
 const CALL = 0;
-const REPLY = 1;
-const ACK = 2;
-/** Ours for this page load, so a message we hear ourselves is recognisable. Never 1, which the e2e fixtures use for the peer. */
-const SESSION_ID = 2 + Math.floor(Math.random() * (MAX_SESSION - 1));
+const SESSION_ID = newSessionId();
 
-/** Listen, scan and handshake share the mic and the worker, so only one runs. */
-const RECEIVERS = ["listen", "scan", "receive-both", "handshake"];
+/** Listen, scan and both share the mic and the worker, so only one runs. */
+const RECEIVERS = ["listen", "scan", "receive-both"];
 
-let link: Link | undefined;
-let sound: SoundTransport | undefined;
-let qr: QrTransport | undefined;
+let page: PageLink | undefined;
 let sending: AbortController | undefined;
 let receiving: AbortController | undefined;
-let turning: AbortController | undefined;
 let seq = 0;
 let selfSuppressed = 0;
 const qrEncoder = new QrEncoder();
 
-function textMessage(text: string, type = CALL, at?: number): Message {
+function textMessage(text: string, at?: number): Message {
   return {
-    type,
+    type: CALL,
     session: SESSION_ID,
     seq: at ?? (seq++ & MAX_SEQ),
     payload: encodeText(text),
@@ -70,7 +52,7 @@ function protocol(): SoundProtocol {
 }
 
 function updateSend() {
-  const frames = buildFrames(textMessage(value("send-text"), CALL, 0));
+  const frames = buildFrames(textMessage(value("send-text"), 0));
   drawQr(qrEncoder.encode(frames), $<HTMLCanvasElement>("qr-canvas"));
   const n = frames.length;
   $("send-estimate").textContent = `${n} frame${n === 1 ? "" : "s"}, about ${
@@ -79,29 +61,19 @@ function updateSend() {
 }
 
 /** Builds the worker and transports once, from a user gesture so iOS lets the audio context run. */
-async function ensureLink(): Promise<
-  { link: Link; sound: SoundTransport; qr: QrTransport } | undefined
-> {
-  if (link && sound && qr) return { link, sound, qr };
-  const context = new AudioContext({ sampleRate: 48_000 });
-  $("sample-rate").textContent = `${context.sampleRate} Hz`;
+async function ensureLink(): Promise<PageLink | undefined> {
+  if (page) return page;
   $("worker-state").textContent = "loading";
   try {
-    const worker = await CodecWorker.create(
-      "./codec-worker.js",
-      context.sampleRate,
-    );
-    sound = new SoundTransport(context, worker, "./capture-worklet.js");
-    qr = new QrTransport(
+    page = await openLink(
       $<HTMLCanvasElement>("qr-canvas"),
       $<HTMLVideoElement>("camera"),
-      worker,
     );
-    link = new Link([sound, qr]);
+    $("sample-rate").textContent = `${page.sampleRate} Hz`;
     $("worker-state").textContent = "ready";
     $("session-id").textContent = String(SESSION_ID);
-    log(`ready at ${context.sampleRate} Hz, session ${SESSION_ID}`);
-    return { link, sound, qr };
+    log(`ready at ${page.sampleRate} Hz, session ${SESSION_ID}`);
+    return page;
   } catch (err) {
     $("worker-state").textContent = "failed";
     log(`start failed: ${err}`);
@@ -110,12 +82,14 @@ async function ensureLink(): Promise<
 }
 
 function syncDevices() {
-  button("mic").textContent = sound?.listening ? "Turn off mic" : "Turn on mic";
-  button("cam").textContent = qr?.watching
+  button("mic").textContent = page?.sound.listening
+    ? "Turn off mic"
+    : "Turn on mic";
+  button("cam").textContent = page?.qr.watching
     ? "Turn off camera"
     : "Turn on camera";
-  $("camera").hidden = !qr?.watching;
-  $("flip").hidden = !qr?.watching;
+  $("camera").hidden = !page?.qr.watching;
+  $("flip").hidden = !page?.qr.watching;
 }
 
 /** Turns a device on or off; both stay rolling between legs so nothing waits on `getUserMedia`. */
@@ -173,16 +147,16 @@ function notOurs(leg: Leg): boolean {
   return false;
 }
 
-function busy(stop: string, on: boolean) {
+function busy(on: boolean) {
   for (const id of RECEIVERS) button(id).disabled = on;
-  button(stop).disabled = !on;
+  button("receive-stop").disabled = !on;
 }
 
 async function receive(via: TransportId[]) {
   const ready = await ensureLink();
   if (!ready) return;
   receiving = new AbortController();
-  busy("receive-stop", true);
+  busy(true);
   $("camera").hidden = !via.includes("qr");
   $("receive-progress").textContent = `waiting on ${via.join(" + ")}`;
   $("received-text").textContent = "";
@@ -209,251 +183,7 @@ async function receive(via: TransportId[]) {
     if (!receiving.signal.aborted) log(`receive failed: ${err}`);
   } finally {
     receiving.abort();
-    busy("receive-stop", false);
-    syncDevices();
-  }
-}
-
-/** Listens for at most `ms` (Infinity to wait indefinitely) for a message `want` accepts. */
-async function listenFor(
-  via: TransportId[],
-  ms: number,
-  want: (leg: Leg) => boolean,
-): Promise<Message | undefined> {
-  if (!link) return undefined;
-  const stop = new AbortController();
-  const timer = Number.isFinite(ms)
-    ? setTimeout(() => stop.abort(), ms)
-    : undefined;
-  const giveUp = () => stop.abort();
-  turning?.signal.addEventListener("abort", giveUp, { once: true });
-  try {
-    return await link.receive(via, stop.signal, {
-      accept: (e) => {
-        if (!want(e)) {
-          log(`ignored type ${e.type} seq ${e.seq} (not what we await)`);
-          return false;
-        }
-        return notOurs(e);
-      },
-    });
-  } catch {
-    return undefined;
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-    turning?.signal.removeEventListener("abort", giveUp);
-  }
-}
-
-function pauseFor(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Both sides retry on their own cadence, and if those cadences come out equal a
- * bad phase has them transmitting over each other forever. A little jitter on
- * every retry is what guarantees they eventually fall into step.
- */
-function jitter(ms: number): Promise<void> {
-  return pauseFor(Math.random() * ms);
-}
-
-/**
- * The three-leg exchange, which is the whole protocol: the caller transmits a
- * payload until the responder answers with one of its own, and the responder
- * repeats its answer until the caller acks. A device cannot hear anything over
- * its own speaker, so no leg overlaps another.
- *
- * Nothing here waits on a guessed interval. The responder answers the moment it
- * has a complete message, which phase-locks both sides to the end of a
- * transmission, so the caller knows exactly when an answer is due: one
- * turnaround plus one pass. `turnaround` is the only measured number — the time
- * a device needs to stop transmitting and have its microphone listening.
- *
- * The leg is the state and the channel is only delivery: the outgoing leg sits
- * on screen as a QR code for as long as it is current, and sound repeats it on
- * its cadence. Whichever channel decodes the awaited leg first wins. Showing a
- * code never blinds our own camera, so QR alone has no windows and no retries.
- */
-async function handshake() {
-  const ready = await ensureLink();
-  if (!ready) return;
-  const { link, sound, qr } = ready;
-  const role = value("turn-role");
-  const channel = value("handshake-via") as TransportId | "both";
-  const via: TransportId[] = channel === "both" ? ["sound", "qr"] : [channel];
-  const bySound = via.includes("sound");
-  const byQr = via.includes("qr");
-  const guardMs = Number(value("guard-ms"));
-  const retries = Number(value("retries"));
-  const turnaroundMs = Number(value("turnaround-ms"));
-  sound.protocol = protocol();
-  const canvas = $<HTMLCanvasElement>("handshake-qr");
-  canvas.hidden = true;
-  const stage = $("stage");
-  stage.classList.remove("done");
-  stage.hidden = !byQr;
-  $("stage-log").hidden = true;
-  button("stage-stop").textContent = "Stop";
-  handshakeLog = [];
-  turning = new AbortController();
-  busy("handshake-stop", true);
-  try {
-    if (bySound) await sound.listen();
-    if (byQr) await qr.watch();
-  } catch (err) {
-    log(`handshake failed: ${err}`);
-    busy("handshake-stop", false);
-    return;
-  }
-  syncDevices();
-  const text = value("handshake-text");
-  const round = 0;
-  const mine = (type: number) => textMessage(text, type, round);
-  const ackOnly = { ...mine(ACK), payload: new Uint8Array() };
-
-  const frameMs = SECONDS_PER_FRAME[sound.protocol] * 1000 + sound.gapMs;
-  const passMs = (m: Message) => buildFrames(m).length * frameMs;
-  const window = (m: Message) =>
-    bySound ? turnaroundMs + passMs(m) + guardMs : Infinity;
-  const replyWindow = window(mine(REPLY));
-  const ackWindow = window(ackOnly);
-  /**
-   * The last ack cannot itself be acked, so after sending it the host stays
-   * listening for one guest retry: the ack window, its jitter, a turnaround
-   * and a reply pass. A repeated reply means the guest missed the ack, so it
-   * goes out again; silence for that long means the guest has it.
-   */
-  const lingerMs = bySound
-    ? ackWindow + frameMs + turnaroundMs + passMs(mine(REPLY)) + guardMs
-    : 1000;
-  /** Puts the leg on screen and, over sound, plays it once. */
-  const transmit = async (m: Message) => {
-    if (byQr) {
-      drawQr(qrEncoder.encode(buildFrames(m)), canvas);
-      canvas.hidden = false;
-    }
-    if (bySound) {
-      sound.maxPasses = 1;
-      await link.send(m, "sound", turning!.signal);
-    }
-  };
-  const await_ = (want: (e: Leg) => boolean, ms: number) =>
-    listenFor(via, ms, want);
-
-  $("handshake-received").textContent = "";
-  $("stage-received").textContent = "";
-  const started = performance.now();
-  const at = () => ((performance.now() - started) / 1000).toFixed(2);
-  let outcome = "stopped";
-  const status = (s: string) => {
-    $("handshake-progress").textContent = s;
-    $("stage-status").textContent = s;
-  };
-  const show = (m: Message) => {
-    const text = decodeText(m.payload);
-    $("handshake-received").textContent = text;
-    $("stage-received").textContent = text;
-  };
-
-  log(
-    `handshake as ${role} over ${via.join(" + ")}${
-      bySound ? ` (${sound.protocol})` : ""
-    }: one pass ${
-      (passMs(mine(CALL)) / 1000).toFixed(2)
-    } s, reply due within ${replyWindow} ms, ack within ${ackWindow} ms, linger ${lingerMs} ms after acking`,
-  );
-  try {
-    if (role === "host") {
-      for (
-        let attempt = 1;
-        attempt <= retries && !turning.signal.aborted;
-        attempt++
-      ) {
-        status(`call ${attempt}: transmitting`);
-        log(`call ${attempt}: transmitting at ${at()} s`);
-        await transmit(mine(CALL));
-        status(`call ${attempt}: awaiting reply`);
-        const reply = await await_(
-          (e) => e.type === REPLY && e.seq === round,
-          replyWindow,
-        );
-        if (!reply) {
-          log(
-            `call ${attempt}: no reply within ${replyWindow} ms, calling again`,
-          );
-          await jitter(frameMs);
-          continue;
-        }
-        show(reply);
-        log(`call ${attempt}: reply at ${at()} s, acking`);
-        for (let ack = 1; !turning.signal.aborted; ack++) {
-          await pauseFor(turnaroundMs);
-          status(`ack ${ack}: transmitting`);
-          await transmit(ackOnly);
-          status(`ack ${ack}: lingering for a repeated reply`);
-          const repeat = await await_(
-            (e) => e.type === REPLY && e.seq === round,
-            lingerMs,
-          );
-          if (!repeat) break;
-          log(`ack ${ack}: reply repeated at ${at()} s, acking again`);
-        }
-        if (turning.signal.aborted) return;
-        outcome = `complete in ${at()} s`;
-        return;
-      }
-      if (!turning.signal.aborted) {
-        outcome = `failed: no reply to ${retries} calls in ${at()} s`;
-      }
-    } else {
-      status("awaiting a call");
-      const call = await await_((e) => e.type === CALL, Infinity);
-      if (!call) return;
-      show(call);
-      log(`call heard at ${at()} s, replying`);
-      for (
-        let attempt = 1;
-        attempt <= retries && !turning.signal.aborted;
-        attempt++
-      ) {
-        await pauseFor(turnaroundMs);
-        status(`reply ${attempt}: transmitting`);
-        log(`reply ${attempt}: transmitting at ${at()} s`);
-        await transmit(mine(REPLY));
-        status(`reply ${attempt}: awaiting ack`);
-        const ack = await await_(
-          (e) => e.type === ACK && e.seq === call.seq,
-          ackWindow,
-        );
-        if (ack) {
-          outcome = `complete in ${at()} s`;
-          return;
-        }
-        log(`reply ${attempt}: no ack within ${ackWindow} ms, replying again`);
-        await jitter(frameMs);
-      }
-      if (!turning.signal.aborted) {
-        outcome = `failed: no ack to ${retries} replies in ${at()} s`;
-      }
-    }
-  } catch (err) {
-    if (!turning.signal.aborted) outcome = `failed after ${at()} s: ${err}`;
-  } finally {
-    turning.abort();
-    sound.maxPasses = Infinity;
-    sound.stopListening();
-    qr.stopWatching();
-    log(`handshake ${outcome}, mic and camera off`);
-    status(outcome);
-    canvas.hidden = true;
-    $("stage-log").textContent = handshakeLog!.join("\n");
-    $("stage-log").hidden = false;
-    handshakeLog = undefined;
-    stage.classList.add("done");
-    stage.hidden = false;
-    button("stage-stop").textContent = "Close";
-    busy("handshake-stop", false);
+    busy(false);
     syncDevices();
   }
 }
@@ -461,15 +191,22 @@ async function handshake() {
 button("mic").onclick = () =>
   toggle(
     "mic",
-    () => sound!.listening,
-    () => sound!.listen(),
-    () => sound!.stopListening(),
+    () => page!.sound.listening,
+    () => page!.sound.listen(),
+    () => page!.sound.stopListening(),
+  );
+button("cam").onclick = () =>
+  toggle(
+    "cam",
+    () => page!.qr.watching,
+    () => page!.qr.watch(),
+    () => page!.qr.stopWatching(),
   );
 button("flip").onclick = async () => {
   button("flip").disabled = true;
   try {
-    await qr?.flip();
-    log(`camera facing ${qr?.facing}`);
+    await page?.qr.flip();
+    log(`camera facing ${page?.qr.facing}`);
   } catch (err) {
     log(`flip failed: ${err}`);
   } finally {
@@ -477,24 +214,11 @@ button("flip").onclick = async () => {
     syncDevices();
   }
 };
-button("cam").onclick = () =>
-  toggle(
-    "cam",
-    () => qr!.watching,
-    () => qr!.watch(),
-    () => qr!.stopWatching(),
-  );
 button("play").onclick = play;
 button("play-stop").onclick = () => sending?.abort();
 button("listen").onclick = () => receive(["sound"]);
 button("scan").onclick = () => receive(["qr"]);
 button("receive-both").onclick = () => receive(["sound", "qr"]);
 button("receive-stop").onclick = () => receiving?.abort();
-button("handshake").onclick = handshake;
-button("handshake-stop").onclick = () => turning?.abort();
-button("stage-stop").onclick = () => {
-  if ($("stage").classList.contains("done")) $("stage").hidden = true;
-  else turning?.abort();
-};
 for (const id of ["send-text", "send-protocol"]) $(id).oninput = updateSend;
 updateSend();

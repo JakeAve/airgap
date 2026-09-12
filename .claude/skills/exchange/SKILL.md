@@ -90,7 +90,11 @@ handshake has been proven on.
 ## Trying it
 
 `deno task dev` serves HTTPS from `.certs/` (see README for mkcert). Open
-`diag.html` on two phones, Start on both, then Handshake as host on one and
-guest on the other. `deno task e2e` covers the parts fake devices can reach:
-that the worker still decodes a peer while encoding for our own speaker, and
-that a guest answers a call. Acoustic self-hearing needs real hardware.
+`handshake.html?role=host` on one phone and `handshake.html?role=guest` on the
+other and tap Start on both; `via`, `text`, `protocol`, `turnaround`, `guard`,
+`retries` and `next` are the other parameters, and the form on `diag.html`
+builds the URL. The page is the exchange screen games will use: camera behind,
+our current leg as a code on top, one status line, the log folded away.
+`deno task e2e` covers the parts fake devices can reach: that the worker still
+decodes a peer while encoding for our own speaker, and that a guest answers a
+call. Acoustic self-hearing needs real hardware.

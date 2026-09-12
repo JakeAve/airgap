@@ -15,6 +15,8 @@ const APP_SHELL = [
   "./main.js",
   "./diag.html",
   "./diag.js",
+  "./handshake.html",
+  "./handshake.js",
   "./codec-worker.js",
   "./capture-worklet.js",
   "./styles.css",
