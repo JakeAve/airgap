@@ -88,10 +88,18 @@
       <section class="card">
         <div class="card-head">
           <h2>Handshake</h2>
-          <span class="mono muted">sound</span>
+          <span class="mono muted">turns</span>
         </div>
         <label>Message <input id="handshake-text" value="hello airgap" maxlength="12" /></label>
+        <canvas id="handshake-qr" class="qr" hidden></canvas>
         <div class="row">
+          <label>Via
+            <select id="handshake-via">
+              <option value="both">sound + QR</option>
+              <option value="sound">sound</option>
+              <option value="qr">QR</option>
+            </select>
+          </label>
           <label>Turns as
             <select id="turn-role">
               <option value="host">host (calls)</option>

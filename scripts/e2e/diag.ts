@@ -132,8 +132,10 @@ try {
   await page.click("#play-stop");
 
   // The fixture message is a CALL, so a guest-role handshake should hear it and
-  // answer. There is no peer to ack, so it can only get as far as replying.
+  // answer. There is no peer to ack, so it can only get as far as replying:
+  // over sound, with the reply also on screen as a code.
   await page.selectOption("#turn-role", "guest");
+  await page.selectOption("#handshake-via", "both");
   await page.click("#handshake");
   try {
     await page.waitForFunction(
@@ -152,7 +154,11 @@ try {
       null,
       { timeout: 10_000 },
     );
-    console.log("handshake: heard the call and answered it");
+    const replyShown = await page.evaluate(() =>
+      document.querySelector("#handshake-qr")?.hasAttribute("hidden") === false
+    );
+    if (replyShown) console.log("handshake: heard the call and answered it");
+    else failures.push("handshake: reply was not put on screen as a code");
   } catch {
     failures.push(
       `handshake: ${await page.textContent("#handshake-progress")}`,

@@ -212,6 +212,7 @@ async function receive(via: TransportId[]) {
 
 /** Listens for at most `ms` (Infinity to wait indefinitely) for a message `want` accepts. */
 async function listenFor(
+  via: TransportId[],
   ms: number,
   want: (leg: Leg) => boolean,
 ): Promise<Message | undefined> {
@@ -223,7 +224,7 @@ async function listenFor(
   const giveUp = () => stop.abort();
   turning?.signal.addEventListener("abort", giveUp, { once: true });
   try {
-    return await link.receive(["sound"], stop.signal, {
+    return await link.receive(via, stop.signal, {
       accept: (e) => {
         if (!want(e)) {
           log(`ignored type ${e.type} seq ${e.seq} (not what we await)`);
@@ -264,17 +265,36 @@ function jitter(ms: number): Promise<void> {
  * transmission, so the caller knows exactly when an answer is due: one
  * turnaround plus one pass. `turnaround` is the only measured number — the time
  * a device needs to stop transmitting and have its microphone listening.
+ *
+ * The leg is the state and the channel is only delivery: the outgoing leg sits
+ * on screen as a QR code for as long as it is current, and sound repeats it on
+ * its cadence. Whichever channel decodes the awaited leg first wins. Showing a
+ * code never blinds our own camera, so QR alone has no windows and no retries.
  */
 async function handshake() {
   const ready = await ensureLink();
   if (!ready) return;
-  const { link, sound } = ready;
+  const { link, sound, qr } = ready;
   const role = value("turn-role");
+  const channel = value("handshake-via") as TransportId | "both";
+  const via: TransportId[] = channel === "both" ? ["sound", "qr"] : [channel];
+  const bySound = via.includes("sound");
+  const byQr = via.includes("qr");
   const guardMs = Number(value("guard-ms"));
   const turnaroundMs = Number(value("turnaround-ms"));
   sound.protocol = protocol();
-  sound.maxPasses = 1;
-  await sound.listen();
+  const canvas = $<HTMLCanvasElement>("handshake-qr");
+  canvas.hidden = true;
+  turning = new AbortController();
+  busy("handshake-stop", true);
+  try {
+    if (bySound) await sound.listen();
+    if (byQr) await qr.watch();
+  } catch (err) {
+    log(`handshake failed: ${err}`);
+    busy("handshake-stop", false);
+    return;
+  }
   syncDevices();
   const text = value("handshake-text");
   const round = 0;
@@ -283,11 +303,24 @@ async function handshake() {
 
   const frameMs = SECONDS_PER_FRAME[sound.protocol] * 1000 + sound.gapMs;
   const passMs = (m: Message) => buildFrames(m).length * frameMs;
-  const replyWindow = turnaroundMs + passMs(mine(REPLY)) + guardMs;
-  const ackWindow = turnaroundMs + passMs(ackOnly) + guardMs;
+  const window = (m: Message) =>
+    bySound ? turnaroundMs + passMs(m) + guardMs : Infinity;
+  const replyWindow = window(mine(REPLY));
+  const ackWindow = window(ackOnly);
+  /** Puts the leg on screen and, over sound, plays it the given passes. */
+  const transmit = async (m: Message, passes = 1) => {
+    if (byQr) {
+      drawQr(qrEncoder.encode(buildFrames(m)), canvas);
+      canvas.hidden = false;
+    }
+    if (bySound) {
+      sound.maxPasses = passes;
+      await link.send(m, "sound", turning!.signal);
+    }
+  };
+  const await_ = (want: (e: Leg) => boolean, ms: number) =>
+    listenFor(via, ms, want);
 
-  turning = new AbortController();
-  busy("handshake-stop", true);
   $("handshake-received").textContent = "";
   const started = performance.now();
   const at = () => ((performance.now() - started) / 1000).toFixed(2);
@@ -299,7 +332,9 @@ async function handshake() {
   };
 
   log(
-    `handshake as ${role} over sound (${sound.protocol}): one pass ${
+    `handshake as ${role} over ${via.join(" + ")}${
+      bySound ? ` (${sound.protocol})` : ""
+    }: one pass ${
       (passMs(mine(CALL)) / 1000).toFixed(2)
     } s, reply due within ${replyWindow} ms, ack within ${ackWindow} ms`,
   );
@@ -308,11 +343,11 @@ async function handshake() {
       for (let attempt = 1; !turning.signal.aborted; attempt++) {
         status(`call ${attempt}: transmitting`);
         log(`call ${attempt}: transmitting at ${at()} s`);
-        await link.send(mine(CALL), "sound", turning.signal);
+        await transmit(mine(CALL));
         status(`call ${attempt}: awaiting reply`);
-        const reply = await listenFor(
-          replyWindow,
+        const reply = await await_(
           (e) => e.type === REPLY && e.seq === round,
+          replyWindow,
         );
         if (!reply) {
           log(
@@ -324,15 +359,14 @@ async function handshake() {
         show(reply);
         log(`call ${attempt}: reply at ${at()} s, acking`);
         await pauseFor(turnaroundMs);
-        sound.maxPasses = ACK_PASSES;
-        await link.send(ackOnly, "sound", turning.signal);
+        await transmit(ackOnly, ACK_PASSES);
         status(`done in ${at()} s`);
         log(`handshake complete in ${at()} s`);
         return;
       }
     } else {
       status("awaiting a call");
-      const call = await listenFor(Infinity, (e) => e.type === CALL);
+      const call = await await_((e) => e.type === CALL, Infinity);
       if (!call) return;
       show(call);
       log(`call heard at ${at()} s, replying`);
@@ -340,11 +374,11 @@ async function handshake() {
         await pauseFor(turnaroundMs);
         status(`reply ${attempt}: transmitting`);
         log(`reply ${attempt}: transmitting at ${at()} s`);
-        await link.send(mine(REPLY), "sound", turning.signal);
+        await transmit(mine(REPLY));
         status(`reply ${attempt}: awaiting ack`);
-        const ack = await listenFor(
-          ackWindow,
+        const ack = await await_(
           (e) => e.type === ACK && e.seq === call.seq,
+          ackWindow,
         );
         if (ack) {
           status(`done in ${at()} s`);
@@ -362,6 +396,7 @@ async function handshake() {
     turning.abort();
     sound.maxPasses = Infinity;
     busy("handshake-stop", false);
+    syncDevices();
   }
 }
 
