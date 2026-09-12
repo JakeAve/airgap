@@ -46,7 +46,7 @@ Deno.test("a message sent over one transport is received over another", async ()
   const received = receiver.receive(
     ["sound", "qr"],
     stop.signal,
-    (p) => progress.push(p.received),
+    { onProgress: (p) => progress.push(p.received) },
   );
   const sending = sender.send(envelope, "sound", stop.signal);
   assertEquals(await received, envelope);
@@ -100,4 +100,24 @@ Deno.test("unknown transports are refused", () => {
     threw = true;
   }
   assertEquals(threw, true);
+});
+
+Deno.test("envelopes the accept predicate rejects are skipped", async () => {
+  const bus = new Bus();
+  const own = new Link([bus.transport("sound")]);
+  const peer = new Link([bus.transport("sound")]);
+  const receiver = new Link([bus.transport("sound")]);
+  const stop = new AbortController();
+  const echo: Envelope = { ...envelope, sessionId: 111 };
+
+  const received = receiver.receive(["sound"], stop.signal, {
+    accept: (e) => e.sessionId !== echo.sessionId,
+  });
+  const sendingEcho = own.send(echo, "sound", stop.signal);
+  const sendingPeer = peer.send(envelope, "sound", stop.signal);
+
+  assertEquals(await received, envelope);
+  stop.abort();
+  await Promise.all([sendingEcho, sendingPeer]);
+  assertEquals(bus.listeners.size, 0);
 });

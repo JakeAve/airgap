@@ -90,6 +90,85 @@ try {
     );
     console.log(`send via ${via}: stopped cleanly`);
   }
+
+  // Transmitting and decoding at once. Sound against sound, because with the
+  // camera fixture in view the QR path wins in a tenth of a second and proves
+  // nothing: what matters is that the single codec worker still decodes the
+  // peer while it encodes for our own speaker. Acoustic self-hearing only
+  // happens on real devices; the accept predicate covers it in link.test.ts.
+  await page.selectOption("#send-via", "sound");
+  await page.click("#send");
+  await page.click("#listen");
+  try {
+    await page.waitForFunction(
+      (expected) =>
+        document.querySelector("#received-text")?.textContent === expected,
+      TEXT,
+      { timeout: 30_000 },
+    );
+    console.log(
+      `decode while transmitting over sound: ${await page.textContent(
+        "#receive-progress",
+      )}`,
+    );
+  } catch {
+    failures.push(
+      `decode while transmitting over sound: ${await page.textContent(
+        "#receive-progress",
+      )}`,
+    );
+  }
+  await page.click("#send-stop");
+
+  // The fixture message is a CALL, so a guest-role handshake should hear it and
+  // answer. There is no peer to ack, so it can only get as far as replying.
+  await page.selectOption("#turn-role", "guest");
+  await page.click("#handshake");
+  try {
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#log")?.textContent?.includes(
+          "call heard at",
+        ) === true,
+      null,
+      { timeout: 30_000 },
+    );
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#log")?.textContent?.includes(
+          "reply 1: transmitting",
+        ) === true,
+      null,
+      { timeout: 10_000 },
+    );
+    console.log("handshake: heard the call and answered it");
+  } catch {
+    failures.push(`handshake: ${await page.textContent("#receive-progress")}`);
+  }
+  await page.click("#receive-stop");
+
+  // The exchange button is the rehearsal for two real phones: transmit and
+  // listen on both channels, and stop transmitting once the peer is heard.
+  await page.click("#exchange");
+  try {
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#log")?.textContent?.includes(
+          "peer heard while we were still transmitting",
+        ) === true,
+      null,
+      { timeout: 30_000 },
+    );
+    await page.waitForFunction(
+      () =>
+        document.querySelector<HTMLButtonElement>("#send")?.disabled === false,
+      null,
+      { timeout: 10_000 },
+    );
+    console.log("exchange: stopped transmitting once the peer was heard");
+  } catch {
+    failures.push(`exchange: ${await page.textContent("#receive-progress")}`);
+  }
 } finally {
   await browser.close();
   await server.shutdown();

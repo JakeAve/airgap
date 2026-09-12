@@ -10,3 +10,4 @@ node_modules/
 .impeccable/
 .worktrees/
 .claude/settings.local.json
+docs/

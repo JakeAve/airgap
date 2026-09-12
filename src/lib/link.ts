@@ -19,6 +19,16 @@ export interface LinkProgress {
   total: number;
 }
 
+export interface LinkReceiveOptions {
+  onProgress?: (progress: LinkProgress) => void;
+  /**
+   * Envelopes this rejects are discarded and listening continues. It is how a
+   * session ignores another pair's traffic, and how a device transmitting and
+   * listening at the same time ignores its own echo.
+   */
+  accept?: (envelope: Envelope) => boolean;
+}
+
 export class Link {
   #transports = new Map<TransportId, Transport>();
   #nextMsgId = 0;
@@ -53,13 +63,13 @@ export class Link {
 
   /**
    * Listens on every transport in `via` at once and resolves with the first
-   * complete, well-formed envelope. Rejects with an AbortError if `signal`
-   * aborts first.
+   * complete, well-formed envelope that `options.accept` allows. Rejects with
+   * an AbortError if `signal` aborts first.
    */
   receive(
     via: TransportId[],
     signal: AbortSignal,
-    onProgress?: (progress: LinkProgress) => void,
+    options: LinkReceiveOptions = {},
   ): Promise<Envelope> {
     const transports = via.map((id) => this.#transport(id));
     const stop = new AbortController();
@@ -69,10 +79,15 @@ export class Link {
       const onFrame = (frame: Uint8Array) => {
         const progress = reassembler.push(frame);
         if (!progress.accepted) return;
-        onProgress?.({ received: progress.received, total: progress.total });
+        options.onProgress?.({
+          received: progress.received,
+          total: progress.total,
+        });
         if (!progress.message) return;
         try {
-          resolve(decodeEnvelope(progress.message));
+          const envelope = decodeEnvelope(progress.message);
+          if (options.accept?.(envelope) === false) reassembler.reset();
+          else resolve(envelope);
         } catch {
           reassembler.reset();
         }

@@ -22,6 +22,12 @@
           <dd id="sample-rate">–</dd>
           <dt>Codec worker</dt>
           <dd id="worker-state">not started</dd>
+          <dt>Microphone</dt>
+          <dd id="mic-state">not started</dd>
+          <dt>Our session id</dt>
+          <dd id="session-id">–</dd>
+          <dt>Own messages ignored</dt>
+          <dd id="self-suppressed">0</dd>
         </dl>
         <button id="start">Start</button>
       </section>
@@ -61,7 +67,23 @@
           <button id="listen">Listen</button>
           <button id="scan">Scan</button>
           <button id="receive-both">Both</button>
+          <button id="exchange">Send + receive at once</button>
           <button id="receive-stop" disabled>Stop</button>
+        </div>
+        <div class="row">
+          <label>Turns as
+            <select id="turn-role">
+              <option value="host">host (calls)</option>
+              <option value="guest">guest (answers)</option>
+            </select>
+          </label>
+          <label>Turnaround ms
+            <input id="turnaround-ms" type="number" value="400" min="0" step="50" />
+          </label>
+          <label>Guard ms
+            <input id="guard-ms" type="number" value="500" min="0" step="100" />
+          </label>
+          <button id="handshake">Handshake</button>
         </div>
         <p id="receive-progress" class="muted">idle</p>
         <p>Received: <strong id="received-text"></strong></p>
