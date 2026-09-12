@@ -146,6 +146,7 @@ try {
   // over sound, with the reply also on screen as a code.
   await page.selectOption("#turn-role", "guest");
   await page.selectOption("#handshake-via", "both");
+  await page.fill("#retries", "2");
   await page.click("#handshake");
   try {
     await page.waitForFunction(
@@ -176,11 +177,14 @@ try {
       `handshake: ${await page.textContent("#handshake-progress")}`,
     );
   }
-  // Stopping ends on the done screen with the devices released; Close dismisses it.
-  await page.click("#stage-stop");
+  // With nobody to ack, the guest gives up after its retries and lands on the
+  // done screen with the devices released; Close dismisses it.
   await page.waitForFunction(
     () =>
       document.querySelector("#stage")?.classList.contains("done") &&
+      (document.querySelector("#stage-status")?.textContent ?? "").startsWith(
+        "failed: no ack to",
+      ) &&
       document.querySelector("#mic")?.textContent === "Turn on mic" &&
       document.querySelector("#cam")?.textContent === "Turn on camera" &&
       document.querySelector("#camera")?.hasAttribute("hidden") === true &&
@@ -188,14 +192,15 @@ try {
         "call heard at",
       ),
     null,
-    { timeout: 10_000 },
+    { timeout: 60_000 },
   );
   await page.click("#stage-stop");
   const dismissed = await page.evaluate(() =>
     document.querySelector("#stage")?.hasAttribute("hidden") === true
   );
-  if (dismissed) console.log("handshake: done screen released the devices");
-  else failures.push("handshake: done screen did not close");
+  if (dismissed) {
+    console.log("handshake: gave up after its retries, devices off");
+  } else failures.push("handshake: done screen did not close");
 } finally {
   await browser.close();
   await server.shutdown();

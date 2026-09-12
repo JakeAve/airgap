@@ -285,6 +285,7 @@ async function handshake() {
   const bySound = via.includes("sound");
   const byQr = via.includes("qr");
   const guardMs = Number(value("guard-ms"));
+  const retries = Number(value("retries"));
   const turnaroundMs = Number(value("turnaround-ms"));
   sound.protocol = protocol();
   const canvas = $<HTMLCanvasElement>("handshake-qr");
@@ -364,7 +365,11 @@ async function handshake() {
   );
   try {
     if (role === "host") {
-      for (let attempt = 1; !turning.signal.aborted; attempt++) {
+      for (
+        let attempt = 1;
+        attempt <= retries && !turning.signal.aborted;
+        attempt++
+      ) {
         status(`call ${attempt}: transmitting`);
         log(`call ${attempt}: transmitting at ${at()} s`);
         await transmit(mine(CALL));
@@ -398,13 +403,20 @@ async function handshake() {
         outcome = `complete in ${at()} s`;
         return;
       }
+      if (!turning.signal.aborted) {
+        outcome = `failed: no reply to ${retries} calls in ${at()} s`;
+      }
     } else {
       status("awaiting a call");
       const call = await await_((e) => e.type === CALL, Infinity);
       if (!call) return;
       show(call);
       log(`call heard at ${at()} s, replying`);
-      for (let attempt = 1; !turning.signal.aborted; attempt++) {
+      for (
+        let attempt = 1;
+        attempt <= retries && !turning.signal.aborted;
+        attempt++
+      ) {
         await pauseFor(turnaroundMs);
         status(`reply ${attempt}: transmitting`);
         log(`reply ${attempt}: transmitting at ${at()} s`);
@@ -420,6 +432,9 @@ async function handshake() {
         }
         log(`reply ${attempt}: no ack within ${ackWindow} ms, replying again`);
         await jitter(frameMs);
+      }
+      if (!turning.signal.aborted) {
+        outcome = `failed: no ack to ${retries} replies in ${at()} s`;
       }
     }
   } catch (err) {
