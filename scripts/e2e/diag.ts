@@ -91,6 +91,16 @@ try {
   );
   if (stillRolling) console.log("camera: still rolling after the scan");
   else failures.push("camera: closed by a scan that did not open it");
+  await page.click("#flip");
+  await page.waitForFunction(
+    () =>
+      document.querySelector("#log")?.textContent?.includes(
+        "camera facing user",
+      ) && document.querySelector("#camera")?.classList.contains("mirrored"),
+    null,
+    { timeout: 10_000 },
+  );
+  await receiveVia("receive via qr after flipping the camera", "#scan");
   await page.click("#cam");
 
   await page.click("#play");

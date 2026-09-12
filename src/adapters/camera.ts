@@ -2,6 +2,9 @@ import type { RgbaImage } from "@/lib/transports/qr/qrDecoder.ts";
 
 const MAX_SCAN_EDGE = 640;
 
+/** `environment` is the rear camera, `user` the front one. */
+export type Facing = "environment" | "user";
+
 type VideoWithFrameCallback = HTMLVideoElement & {
   requestVideoFrameCallback?: (callback: () => void) => number;
 };
@@ -16,11 +19,18 @@ export class Camera {
     this.#video = video;
   }
 
-  /** Opens the rear camera into `video`. Must be called from a user gesture on iOS. */
-  static async open(video: HTMLVideoElement): Promise<Camera> {
+  /**
+   * Opens a camera into `video`. A front camera is previewed mirrored, the
+   * way people expect to see themselves; the decoder gets the raw frames.
+   * Must be called from a user gesture on iOS.
+   */
+  static async open(
+    video: HTMLVideoElement,
+    facing: Facing = "environment",
+  ): Promise<Camera> {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: "environment",
+        facingMode: facing,
         width: { ideal: 1280 },
         height: { ideal: 720 },
       },
@@ -29,6 +39,7 @@ export class Camera {
     video.srcObject = stream;
     video.muted = true;
     video.playsInline = true;
+    video.classList.toggle("mirrored", facing === "user");
     await video.play();
     return new Camera(stream, video);
   }

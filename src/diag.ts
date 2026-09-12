@@ -112,6 +112,7 @@ function syncDevices() {
     ? "Turn off camera"
     : "Turn on camera";
   $("camera").hidden = !qr?.watching;
+  $("flip").hidden = !qr?.watching;
 }
 
 /** Turns a device on or off; both stay rolling between legs so nothing waits on `getUserMedia`. */
@@ -407,6 +408,18 @@ button("mic").onclick = () =>
     () => sound!.listen(),
     () => sound!.stopListening(),
   );
+button("flip").onclick = async () => {
+  button("flip").disabled = true;
+  try {
+    await qr?.flip();
+    log(`camera facing ${qr?.facing}`);
+  } catch (err) {
+    log(`flip failed: ${err}`);
+  } finally {
+    button("flip").disabled = false;
+    syncDevices();
+  }
+};
 button("cam").onclick = () =>
   toggle(
     "cam",

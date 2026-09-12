@@ -2,7 +2,7 @@ import { aborted, abortError, type Transport } from "@/lib/transport.ts";
 import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
 import type { CodecWorker } from "./codecWorker.ts";
 import { showQrCodes } from "./screen.ts";
-import { Camera } from "./camera.ts";
+import { Camera, type Facing } from "./camera.ts";
 
 type FrameListener = (frame: Uint8Array) => void;
 
@@ -14,6 +14,7 @@ export class QrTransport implements Transport {
   #encoder = new QrEncoder();
   #camera: Camera | undefined;
   #watching: AbortController | undefined;
+  facing: Facing = "environment";
   #listeners = new Set<FrameListener>();
 
   constructor(
@@ -38,7 +39,7 @@ export class QrTransport implements Transport {
    */
   async watch(): Promise<void> {
     if (this.#camera) return;
-    const camera = await Camera.open(this.#video);
+    const camera = await Camera.open(this.#video, this.facing);
     const stop = new AbortController();
     this.#camera = camera;
     this.#watching = stop;
@@ -48,6 +49,14 @@ export class QrTransport implements Transport {
         for (const listener of this.#listeners) listener(frame);
       }
     }, stop.signal).catch(() => {});
+  }
+
+  /** Swaps front and rear. Reopening costs a `getUserMedia`, so do it between legs; listeners survive it. */
+  async flip(): Promise<void> {
+    this.facing = this.facing === "user" ? "environment" : "user";
+    if (!this.watching) return;
+    this.stopWatching();
+    await this.watch();
   }
 
   get watching(): boolean {

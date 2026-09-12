@@ -587,6 +587,17 @@ button:disabled {
   box-shadow: 0 0 24px rgba(var(--rx-rgb), 0.25);
 }
 
+.camera.mirrored {
+  transform: scaleX(-1);
+}
+
+.camera-flip {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(50vh - 44px - 1rem);
+  background: rgba(10, 10, 11, 0.7);
+}
+
 body:has(.camera:not([hidden])) {
   padding-bottom: 50vh;
 }
