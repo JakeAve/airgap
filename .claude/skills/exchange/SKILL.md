@@ -58,7 +58,11 @@ a CRC means one clean window is enough. These rules are about how a stall ends.
   becomes the next round's responder and is already listening: a device awaiting
   a call that hears a reply for the previous round re-sends that round's ack.
   The peer asks as long as it needs to, the way TCP answers a retransmitted
-  SYN-ACK.
+  SYN-ACK. When there is no next round, the caller lingers after its ack with
+  mic and camera on for exactly one responder retry — ack window, jitter, a
+  turnaround and a reply pass, all computable — and re-acks if the reply comes
+  again. Silence for that long means the responder has it, and only then do the
+  devices go off. The diag handshake does this.
 - **The last round of a game is the exception**, because the winner stops
   listening and nobody is left to re-ask. Linger on the exchange screen after
   the final round, still answering duplicate replies — TCP's TIME_WAIT. What

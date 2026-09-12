@@ -40,8 +40,6 @@ const SECONDS_PER_FRAME: Record<SoundProtocol, number> = {
 const CALL = 0;
 const REPLY = 1;
 const ACK = 2;
-/** The last ack can never itself be acked, so it goes out a fixed few times. */
-const ACK_PASSES = 2;
 /** Ours for this page load, so a message we hear ourselves is recognisable. Never 1, which the e2e fixtures use for the peer. */
 const SESSION_ID = 2 + Math.floor(Math.random() * (MAX_SESSION - 1));
 
@@ -319,14 +317,23 @@ async function handshake() {
     bySound ? turnaroundMs + passMs(m) + guardMs : Infinity;
   const replyWindow = window(mine(REPLY));
   const ackWindow = window(ackOnly);
-  /** Puts the leg on screen and, over sound, plays it the given passes. */
-  const transmit = async (m: Message, passes = 1) => {
+  /**
+   * The last ack cannot itself be acked, so after sending it the host stays
+   * listening for one guest retry: the ack window, its jitter, a turnaround
+   * and a reply pass. A repeated reply means the guest missed the ack, so it
+   * goes out again; silence for that long means the guest has it.
+   */
+  const lingerMs = bySound
+    ? ackWindow + frameMs + turnaroundMs + passMs(mine(REPLY)) + guardMs
+    : 1000;
+  /** Puts the leg on screen and, over sound, plays it once. */
+  const transmit = async (m: Message) => {
     if (byQr) {
       drawQr(qrEncoder.encode(buildFrames(m)), canvas);
       canvas.hidden = false;
     }
     if (bySound) {
-      sound.maxPasses = passes;
+      sound.maxPasses = 1;
       await link.send(m, "sound", turning!.signal);
     }
   };
@@ -353,7 +360,7 @@ async function handshake() {
       bySound ? ` (${sound.protocol})` : ""
     }: one pass ${
       (passMs(mine(CALL)) / 1000).toFixed(2)
-    } s, reply due within ${replyWindow} ms, ack within ${ackWindow} ms`,
+    } s, reply due within ${replyWindow} ms, ack within ${ackWindow} ms, linger ${lingerMs} ms after acking`,
   );
   try {
     if (role === "host") {
@@ -375,8 +382,19 @@ async function handshake() {
         }
         show(reply);
         log(`call ${attempt}: reply at ${at()} s, acking`);
-        await pauseFor(turnaroundMs);
-        await transmit(ackOnly, ACK_PASSES);
+        for (let ack = 1; !turning.signal.aborted; ack++) {
+          await pauseFor(turnaroundMs);
+          status(`ack ${ack}: transmitting`);
+          await transmit(ackOnly);
+          status(`ack ${ack}: lingering for a repeated reply`);
+          const repeat = await await_(
+            (e) => e.type === REPLY && e.seq === round,
+            lingerMs,
+          );
+          if (!repeat) break;
+          log(`ack ${ack}: reply repeated at ${at()} s, acking again`);
+        }
+        if (turning.signal.aborted) return;
         outcome = `complete in ${at()} s`;
         return;
       }
