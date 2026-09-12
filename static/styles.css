@@ -632,6 +632,26 @@ body:has(.camera:not([hidden])) {
   color: var(--rx);
 }
 
+.stage.done {
+  inset: 0;
+  grid-template-rows: auto 1fr auto;
+  align-items: stretch;
+  justify-items: stretch;
+}
+
+.stage.done button {
+  justify-self: center;
+}
+
+.stage.done .log {
+  width: 100%;
+  min-height: 0;
+  max-height: none;
+  padding: 0.75rem;
+  background: #08080a;
+  border: 1px solid var(--line);
+}
+
 .log {
   margin: 0;
   max-height: 16rem;

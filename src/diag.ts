@@ -16,9 +16,14 @@ const $ = <T extends HTMLElement>(id: string) =>
 const button = (id: string) => $<HTMLButtonElement>(id);
 const value = (id: string) => $<HTMLInputElement>(id).value;
 
+/** Lines logged while a handshake runs, for its done screen. */
+let handshakeLog: string[] | undefined;
+
 const log = (line: string) => {
+  const stamped = `${new Date().toISOString().slice(11, 23)} ${line}`;
+  handshakeLog?.push(stamped);
   const el = $<HTMLPreElement>("log");
-  el.textContent += `${new Date().toISOString().slice(11, 23)} ${line}\n`;
+  el.textContent += `${stamped}\n`;
   el.scrollTop = el.scrollHeight;
 };
 
@@ -286,8 +291,12 @@ async function handshake() {
   sound.protocol = protocol();
   const canvas = $<HTMLCanvasElement>("handshake-qr");
   canvas.hidden = true;
-  $("stage").hidden = !byQr;
+  const stage = $("stage");
+  stage.classList.remove("done");
+  stage.hidden = !byQr;
+  $("stage-log").hidden = true;
   button("stage-stop").textContent = "Stop";
+  handshakeLog = [];
   turning = new AbortController();
   busy("handshake-stop", true);
   try {
@@ -328,6 +337,7 @@ async function handshake() {
   $("stage-received").textContent = "";
   const started = performance.now();
   const at = () => ((performance.now() - started) / 1000).toFixed(2);
+  let outcome = "stopped";
   const status = (s: string) => {
     $("handshake-progress").textContent = s;
     $("stage-status").textContent = s;
@@ -367,8 +377,7 @@ async function handshake() {
         log(`call ${attempt}: reply at ${at()} s, acking`);
         await pauseFor(turnaroundMs);
         await transmit(ackOnly, ACK_PASSES);
-        status(`done in ${at()} s`);
-        log(`handshake complete in ${at()} s`);
+        outcome = `complete in ${at()} s`;
         return;
       }
     } else {
@@ -388,22 +397,30 @@ async function handshake() {
           ackWindow,
         );
         if (ack) {
-          status(`done in ${at()} s`);
-          log(`handshake complete in ${at()} s`);
+          outcome = `complete in ${at()} s`;
           return;
         }
         log(`reply ${attempt}: no ack within ${ackWindow} ms, replying again`);
         await jitter(frameMs);
       }
     }
-    status("stopped");
   } catch (err) {
-    if (!turning.signal.aborted) log(`handshake failed: ${err}`);
+    if (!turning.signal.aborted) outcome = `failed after ${at()} s: ${err}`;
   } finally {
     turning.abort();
     sound.maxPasses = Infinity;
-    busy("handshake-stop", false);
+    sound.stopListening();
+    qr.stopWatching();
+    log(`handshake ${outcome}, mic and camera off`);
+    status(outcome);
+    canvas.hidden = true;
+    $("stage-log").textContent = handshakeLog!.join("\n");
+    $("stage-log").hidden = false;
+    handshakeLog = undefined;
+    stage.classList.add("done");
+    stage.hidden = false;
     button("stage-stop").textContent = "Close";
+    busy("handshake-stop", false);
     syncDevices();
   }
 }
@@ -443,8 +460,8 @@ button("receive-stop").onclick = () => receiving?.abort();
 button("handshake").onclick = handshake;
 button("handshake-stop").onclick = () => turning?.abort();
 button("stage-stop").onclick = () => {
-  turning?.abort();
-  $("stage").hidden = true;
+  if ($("stage").classList.contains("done")) $("stage").hidden = true;
+  else turning?.abort();
 };
 for (const id of ["send-text", "send-protocol"]) $(id).oninput = updateSend;
 updateSend();
