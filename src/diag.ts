@@ -45,6 +45,7 @@ const RECEIVERS = ["listen", "scan", "receive-both", "handshake"];
 
 let link: Link | undefined;
 let sound: SoundTransport | undefined;
+let qr: QrTransport | undefined;
 let sending: AbortController | undefined;
 let receiving: AbortController | undefined;
 let turning: AbortController | undefined;
@@ -76,9 +77,9 @@ function updateSend() {
 
 /** Builds the worker and transports once, from a user gesture so iOS lets the audio context run. */
 async function ensureLink(): Promise<
-  { link: Link; sound: SoundTransport } | undefined
+  { link: Link; sound: SoundTransport; qr: QrTransport } | undefined
 > {
-  if (link && sound) return { link, sound };
+  if (link && sound && qr) return { link, sound, qr };
   const context = new AudioContext({ sampleRate: 48_000 });
   $("sample-rate").textContent = `${context.sampleRate} Hz`;
   $("worker-state").textContent = "loading";
@@ -88,7 +89,7 @@ async function ensureLink(): Promise<
       context.sampleRate,
     );
     sound = new SoundTransport(context, worker, "./capture-worklet.js");
-    const qr = new QrTransport(
+    qr = new QrTransport(
       $<HTMLCanvasElement>("qr-canvas"),
       $<HTMLVideoElement>("camera"),
       worker,
@@ -97,7 +98,7 @@ async function ensureLink(): Promise<
     $("worker-state").textContent = "ready";
     $("session-id").textContent = String(SESSION_ID);
     log(`ready at ${context.sampleRate} Hz, session ${SESSION_ID}`);
-    return { link, sound };
+    return { link, sound, qr };
   } catch (err) {
     $("worker-state").textContent = "failed";
     log(`start failed: ${err}`);
@@ -105,27 +106,36 @@ async function ensureLink(): Promise<
   }
 }
 
-function syncMic() {
+function syncDevices() {
   button("mic").textContent = sound?.listening ? "Turn off mic" : "Turn on mic";
+  button("cam").textContent = qr?.watching
+    ? "Turn off camera"
+    : "Turn on camera";
+  $("camera").hidden = !qr?.watching;
 }
 
-async function toggleMic() {
-  button("mic").disabled = true;
+/** Turns a device on or off; both stay rolling between legs so nothing waits on `getUserMedia`. */
+async function toggle(
+  id: "mic" | "cam",
+  isOn: () => boolean,
+  on: () => Promise<void>,
+  off: () => void,
+) {
+  button(id).disabled = true;
   try {
-    const ready = await ensureLink();
-    if (!ready) return;
-    if (ready.sound.listening) {
-      ready.sound.stopListening();
-      log("mic off");
+    if (!(await ensureLink())) return;
+    if (isOn()) {
+      off();
+      log(`${id} off`);
     } else {
-      await ready.sound.listen();
-      log("mic on");
+      await on();
+      log(`${id} on`);
     }
   } catch (err) {
-    log(`mic failed: ${err}`);
+    log(`${id} failed: ${err}`);
   } finally {
-    button("mic").disabled = false;
-    syncMic();
+    button(id).disabled = false;
+    syncDevices();
   }
 }
 
@@ -196,8 +206,7 @@ async function receive(via: TransportId[]) {
   } finally {
     receiving.abort();
     busy("receive-stop", false);
-    $("camera").hidden = true;
-    syncMic();
+    syncDevices();
   }
 }
 
@@ -266,7 +275,7 @@ async function handshake() {
   sound.protocol = protocol();
   sound.maxPasses = 1;
   await sound.listen();
-  syncMic();
+  syncDevices();
   const text = value("handshake-text");
   const round = 0;
   const mine = (type: number) => textMessage(text, type, round);
@@ -356,7 +365,20 @@ async function handshake() {
   }
 }
 
-button("mic").onclick = toggleMic;
+button("mic").onclick = () =>
+  toggle(
+    "mic",
+    () => sound!.listening,
+    () => sound!.listen(),
+    () => sound!.stopListening(),
+  );
+button("cam").onclick = () =>
+  toggle(
+    "cam",
+    () => qr!.watching,
+    () => qr!.watch(),
+    () => qr!.stopWatching(),
+  );
 button("play").onclick = play;
 button("play-stop").onclick = () => sending?.abort();
 button("listen").onclick = () => receive(["sound"]);

@@ -77,6 +77,22 @@ try {
   await receiveVia("receive via qr", "#scan");
   await receiveVia("receive via both", "#receive-both");
 
+  // A camera turned on by hand stays rolling: scans reuse it and leave it open.
+  await page.click("#cam");
+  await page.waitForFunction(
+    () => document.querySelector("#cam")?.textContent === "Turn off camera",
+    null,
+    { timeout: 10_000 },
+  );
+  await receiveVia("receive via qr with the camera already on", "#scan");
+  const stillRolling = await page.evaluate(() =>
+    document.querySelector<HTMLVideoElement>("#camera")?.srcObject !== null &&
+    document.querySelector("#camera")?.hasAttribute("hidden") === false
+  );
+  if (stillRolling) console.log("camera: still rolling after the scan");
+  else failures.push("camera: closed by a scan that did not open it");
+  await page.click("#cam");
+
   await page.click("#play");
   await page.waitForTimeout(1500);
   await page.click("#play-stop");
