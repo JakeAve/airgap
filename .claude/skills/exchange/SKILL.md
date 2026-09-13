@@ -34,11 +34,29 @@ pass of the responder's frames, both computable from the frame count and the
 protocol's frame period. Turnaround is the only measured number — the speaker
 tail and the room — and 50 ms is enough on real phones. It stays a knob.
 
-**The microphone opens once and stays rolling.** `SoundTransport.listen()` opens
-it before anything is transmitted; `receive()` reuses it. Reopening per leg lost
-the ack outright, because `getUserMedia` is far too slow to run between legs.
-Samples heard while we talk decode to nobody. Headless reacquisition fell from
-1.71 s to 0.68 s when this changed.
+**The microphone opens once and stays rolling, and so does the camera.**
+`SoundTransport.listen()` opens the mic before anything is transmitted;
+`receive()` reuses it. Reopening per leg lost the ack outright, because
+`getUserMedia` is far too slow to run between legs. Samples heard while we talk
+decode to nobody. Headless reacquisition fell from 1.71 s to 0.68 s when this
+changed. `QrTransport.watch()` is the same idea for the camera: a scan with the
+camera already rolling decodes in 0.03 s against 0.22 s cold. `flip()` swaps
+front and rear by reopening, so it belongs between legs, not inside one.
+
+**The leg is the state; the channel is only delivery.** Every outgoing leg is
+drawn as a QR code for as long as it is current and, over sound, played on its
+cadence. The awaited leg is accepted from whichever channel decodes it first.
+Sound is half duplex (above) but QR is not: showing a code never blinds our own
+camera, so the peer can read our screen mid-pass. QR alone therefore has no
+windows and no retries — show the code and wait. With rear cameras only one
+phone can see the other at a time, so in practice sound is the ambient channel
+and QR is the one a person reaches for when a stall is visible.
+
+**Who each leg informs.** The reply tells the host the guest has the call, so
+the host can advance the turn the moment it decodes. The ack tells the guest the
+host has the reply, so the ack is what lets the _guest_ advance. The host
+sending the ack needs no mic or camera; it needs them only to hear a repeated
+reply, which is what the linger below is for.
 
 **The leg type separates a peer's message from our own echo.** Within a round no
 device awaits a type it also sends: the caller sends CALL and ACK and awaits
@@ -50,8 +68,12 @@ game's payload and travels inside a normal round.
 
 ## Getting unstuck
 
-No leg deadlocks; every one retries indefinitely, because a looping sender plus
-a CRC means one clean window is enough. These rules are about how a stall ends.
+No leg deadlocks, because a repeating sender plus a CRC means one clean window
+is enough. Retries are bounded, as TCP bounds SYN retries: `retries` calls
+without a reply or replies without an ack end the run as a failure with the
+devices off, rather than a spinner. Five on fastest is about fifteen seconds. A
+guest awaiting its first call waits indefinitely, since the host may not have
+started. These rules are about how a stall ends short of that.
 
 - **The final ack cannot itself be acked** (the two-army problem), so it is not
   sent a hopeful number of times. After a round the roles swap, so the caller
@@ -77,7 +99,34 @@ a CRC means one clean window is enough. These rules are about how a stall ends.
   them, so an exchange that will not finish over sound finishes over QR
   mid-round, with nothing renegotiated. Show attempt count and elapsed time so a
   stall is visible rather than a spinner, with the QR code already on screen and
-  the camera one tap away.
+  the camera already rolling.
+
+## The exchange screen
+
+`handshake.html` (`src/handshake.ts`) is the screen games will use, chosen from
+three drafted directions: the camera fills the page, our current leg floats on
+it as a code, a flip button sits at the camera's corner, one status line runs
+along the bottom with the log folded under it as a `<details>`. It never
+scrolls; only the log does. Three states:
+
+- **Ready.** A Start button and the message in the status line. iOS needs the
+  tap before the mic, camera and audio context can open, so nothing opens on
+  load. Role shows in the header; channel and protocol stay in the log's opening
+  line, never on screen.
+- **Running.** Status names the leg and attempt (`call 2: awaiting reply`, amber
+  while transmitting, teal while listening) and the elapsed time ticks. Stop is
+  in the header.
+- **Done.** Mic and camera go off, the code disappears, the outcome and the
+  peer's payload sit in the middle. Complete offers **Continue**, which goes to
+  the `next` URL; failed or stopped offers **Retry**, which runs the same
+  parameters again on the same page.
+
+The received text is a diag convenience: the page decodes with the diag codec
+because that is the only game it knows. A game decodes the payload with its own
+codec and redraws its board; the shell — camera, code, status line, outcome — is
+what carries over. `src/adapters/pageLink.ts` builds the worker and both
+transports for any page; `diag.html` uses the same pieces for one-way tests and
+its handshake form is a plain GET that builds the URL.
 
 ## Ultrasound
 

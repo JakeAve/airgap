@@ -31,7 +31,7 @@ deno task check        # fmt check + lint + type check
 deno task test         # unit tests
 deno task pre-commit   # check + test (also run by .githooks/pre-commit)
 deno task pre-push     # check + test (also run by .githooks/pre-push)
-deno task e2e          # build, then drive diag.html in headless Chromium with fake devices
+deno task e2e          # build, then drive diag.html and handshake.html in headless Chromium with fake devices
 ```
 
 `deno task e2e` needs a Chromium: `deno run -A npm:playwright install chromium`
@@ -48,14 +48,19 @@ committing.
 - `src/sw.ts` — service worker; bundled to `dist/sw.js`. `__BUILD_ID__` is
   replaced at build time so each build gets its own cache.
 - `src/diag.ts` + `static/diag.html` — diagnostics page: send and receive a test
-  message over either transport, with timing log
+  message over either transport, with timing log; its handshake form is a GET to
+  the exchange screen
+- `src/handshake.ts` + `static/handshake.html` — the exchange screen: one
+  call/reply/ack round over sound, QR, or both, every setting a URL parameter
+  (`role`, `via`, `text`, `protocol`, `turnaround`, `guard`, `retries`, `next`)
 - `src/codecWorker.ts` — Web Worker hosting ggwave (sound encode + decode) and
   the QR decoder; bundled to `dist/codec-worker.js`
 - `src/captureWorklet.ts` — AudioWorklet that forwards microphone samples in
   1024-sample blocks; bundled to `dist/capture-worklet.js`
 - `src/adapters/` — the only browser-API code: `codecWorker.ts` (page-side
-  handle), `speaker.ts`, `microphone.ts`, `screen.ts`, `camera.ts`, and
-  `soundTransport.ts` / `qrTransport.ts` implementing `Transport`
+  handle), `speaker.ts`, `microphone.ts`, `screen.ts`, `camera.ts`,
+  `soundTransport.ts` / `qrTransport.ts` implementing `Transport`, and
+  `pageLink.ts` building the worker and both transports for a page
 - `src/lib/` — pure, tested modules shared by every game
   - `protocol.ts` — wire protocol constants (frame layout, limits)
   - `bits/` — `BitWriter`, `BitReader`, `crc8`
@@ -109,7 +114,10 @@ care which delivered them.
   frame. Both decoders share a `push(chunk)` interface returning frames.
 - Sending loops the frame sequence until its abort signal fires; receiving
   resolves on the first complete message and then stops every transport it
-  opened.
+  opened. Both transports can also be left rolling (`listen`/`watch`) so a
+  receive between legs never waits on `getUserMedia`.
+- The handshake and its hardware lessons live in `.claude/skills/exchange`; read
+  it before touching legs, windows, or the exchange screen.
 
 ## Wire-protocol facts worth remembering
 

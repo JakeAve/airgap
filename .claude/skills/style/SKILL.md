@@ -60,7 +60,20 @@ install still renders. Do not add a fourth face.
   the caption as leading text. Focus glows amber.
 - `.readout` a dark well with `.status` (teal mono line) and `.value` (caption +
   `strong`). `.dot`, `.dot.tx`, `.dot.rx` status dots; `rx` pulses.
-- `.qr` the code canvas, `.camera` the preview, `.log` the transcript.
+- `.qr` the code canvas, `.camera` the preview, `.log` the transcript. `.camera`
+  is `position: fixed` to the bottom half of the page with the body padded to
+  match; `.camera-flip` floats at its corner; `.camera.mirrored` flips a
+  front-camera preview. Fixed layers carry explicit z-indexes (camera 10,
+  flip 11) because every `.card` is positioned for its corner ticks and would
+  otherwise paint over them.
+- `.rx-text` / `.tx-text` colour and glow a run of text in an accent.
+- `body.viewfinder` is the exchange screen (`handshake.html`): a flex column the
+  height of the viewport that never scrolls, with the camera full-bleed behind.
+  `.vf-head` (wordmark, role label, Stop), `.vf-code` (the current leg, 220px,
+  centred), `.vf-middle` (fills; Start, the outcome, Continue or Retry, and
+  `.vf-flip` pinned to its bottom right), `.vf-foot` (`.vf-status` dot + mono
+  status + elapsed, then a `<details>` holding `.log`). Only the log scrolls.
+  Add game UI into `.vf-middle`, not around it.
 - `.stack`, `.row`, `.facts` (`dl` grid), `.mono`, `.muted`.
 - `.grid-floor` the perspective floor. Home page only; it is decoration and a
   second one on a busy page reads as noise.
@@ -85,6 +98,13 @@ the unit tests and the e2e camera fixture all draw from it, so a colour change
 is proved decodable by `deno task test` and `deno task e2e`. The decoder handles
 inverted codes; keep the module colour bright and the background near black or
 that stops being true.
+
+## The exchange screen was designed on a canvas
+
+Three directions were drafted and Viewfinder was chosen; the canvas with the
+alternates and the pieces sheet is at
+https://claude.ai/code/artifact/65b54760-d228-413e-ab75-01c4f44e2d4a. Start
+there when changing the exchange screen rather than redrawing from scratch.
 
 ## When adding a game screen
 

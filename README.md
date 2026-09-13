@@ -28,10 +28,11 @@ The pre-commit and pre-push hooks run `check` and `test`.
 
 ## Testing on phones
 
-Open `/diag.html` on two devices to send a message between them by sound or QR.
-Browsers only allow the microphone and camera on secure origins, so for local
-testing over Wi-Fi the dev server needs a certificate. With
-[mkcert](https://github.com/FiloSottile/mkcert):
+Open `/diag.html` on two devices to send a message between them by sound or QR,
+or `/handshake.html?role=host` on one and `/handshake.html?role=guest` on the
+other for a full call, reply and ack round. Browsers only allow the microphone
+and camera on secure origins, so for local testing over Wi-Fi the dev server
+needs a certificate. With [mkcert](https://github.com/FiloSottile/mkcert):
 
 ```bash
 mkdir -p .certs
