@@ -12,13 +12,36 @@ function render() {
     <div class="rule">
       <span class="label tx">Games</span>
     </div>
-    <section class="card dashed">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="muted" aria-hidden="true">
-        <path d="M4 12h4"></path><path d="M16 12h4"></path>
-        <path d="M9 8a5.5 5.5 0 0 1 0 8"></path><path d="M15 16a5.5 5.5 0 0 1 0-8"></path>
-      </svg>
-      <h2 class="mark" style="font-size: 13px; color: var(--fg)">No games yet</h2>
-      <p class="muted">Games will appear here.</p>
+    <section class="card">
+      <h2>Tic-tac-toe</h2>
+      <a href="./tictactoe.html?role=host" class="link-card tx">
+        <span class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M9 3v18M15 3v18M3 9h18M3 15h18"></path>
+          </svg>
+        </span>
+        <span class="text">
+          <strong>New game</strong>
+          <small>Host — call the first move</small>
+        </span>
+        <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 6l6 6-6 6"></path>
+        </svg>
+      </a>
+      <a href="./tictactoe.html?role=guest" class="link-card rx">
+        <span class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M9 3v18M15 3v18M3 9h18M3 15h18"></path>
+          </svg>
+        </span>
+        <span class="text">
+          <strong>Join</strong>
+          <small>Guest — answer a call</small>
+        </span>
+        <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 6l6 6-6 6"></path>
+        </svg>
+      </a>
     </section>
     <div class="rule">
       <span class="label">Tools</span>

@@ -342,6 +342,10 @@ a:hover {
   flex-shrink: 0;
 }
 
+.link-card.rx .icon {
+  color: var(--rx);
+}
+
 .link-card .text {
   display: flex;
   flex-direction: column;
