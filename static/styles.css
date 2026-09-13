@@ -947,6 +947,16 @@ button:has(.sector.small) {
   animation: damage 500ms ease-out both;
 }
 
+/* The enemy sector shows their hulls, damaged by my shots. */
+.sector.enemy .hull {
+  color: var(--them);
+}
+
+.sector.enemy .hull .hit {
+  stroke: var(--me);
+  filter: drop-shadow(0 0 6px rgba(var(--me-rgb), 0.9));
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
