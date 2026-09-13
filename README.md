@@ -13,7 +13,7 @@ Requires [Deno](https://deno.com) 2.x.
 
 ```bash
 deno task setup   # installs the git hooks (run once after cloning)
-deno task dev     # builds to dist/ and serves it at http://localhost:8000, rebuilding on change
+deno task dev     # builds to dist/ and serves it at http://localhost:8443, rebuilding on change
 ```
 
 ## Commands
@@ -37,7 +37,7 @@ needs a certificate. With [mkcert](https://github.com/FiloSottile/mkcert):
 ```bash
 mkdir -p .certs
 mkcert -cert-file .certs/cert.pem -key-file .certs/key.pem localhost 192.168.1.10
-deno task dev   # now serves https on port 8000
+deno task dev   # now serves https on port 8443
 ```
 
 Replace the IP with your machine's LAN address and install mkcert's root CA on
