@@ -2,11 +2,13 @@ import { mountTurnPage, type TurnGame } from "@/games/turnPage.ts";
 import type { Role } from "@/games/turn.ts";
 import {
   apply,
+  claimable,
   findOrder,
   inCheck,
   initialState,
   type Kind,
   legalMoves,
+  type Order,
   type Outcome,
   outcome,
   type Side,
@@ -14,7 +16,12 @@ import {
   type State,
   turn,
 } from "./logic.ts";
-import { decodeOrder, describeOrder, encodeOrder } from "./codec.ts";
+import {
+  decodeOrder,
+  describeOrder,
+  encodeOrder,
+  PROMOTIONS,
+} from "./codec.ts";
 
 const SIDE_LENGTH = 8;
 const KIND_NAMES: Record<Kind, string> = {
@@ -29,7 +36,15 @@ const KIND_NAMES: Record<Kind, string> = {
 const sideOf = (role: Role): Side => role === "host" ? "white" : "black";
 const other = (side: Side): Side => side === "white" ? "black" : "white";
 
-const boardEl = document.getElementById("board") as HTMLElement;
+const $ = <T extends HTMLElement>(id: string) =>
+  document.getElementById(id) as T;
+const boardEl = $("board");
+const promotionEl = $("promotion");
+const controlsEl = $("controls");
+const pingEl = $<HTMLButtonElement>("ping");
+const offerEl = $<HTMLInputElement>("offer");
+const drawEl = $<HTMLButtonElement>("draw");
+const resignEl = $<HTMLButtonElement>("resign");
 
 /**
  * Cells run left to right, top to bottom. Each player sees their own back rank
@@ -49,6 +64,9 @@ let view: Role = "host";
 let selected: number | undefined;
 /** The state the selection was built on: any other state invalidates it. */
 let selectedState: State | undefined;
+/** A promotion waiting for its piece, on the state it was chosen in. */
+let pending: { from: number; to: number; state: State } | undefined;
+let resignTimer: ReturnType<typeof setTimeout> | undefined;
 /** The two squares of the move that produced each state. */
 const lastMove = new WeakMap<State, number[]>();
 
@@ -82,9 +100,26 @@ function kingInCheck(state: State): number {
   );
 }
 
+function disarmResign() {
+  clearTimeout(resignTimer);
+  resignTimer = undefined;
+  resignEl.textContent = "Resign";
+}
+
 function render(state: State, role: Role) {
   view = role;
-  if (state !== selectedState) selected = undefined;
+  if (state !== selectedState) {
+    selected = undefined;
+    disarmResign();
+  }
+  if (pending && pending.state !== state) pending = undefined;
+  promotionEl.hidden = pending === undefined;
+  promotionEl.classList.toggle("x", turn(state) === "white");
+  promotionEl.classList.toggle("o", turn(state) === "black");
+  const mine = turn(state) === sideOf(role) && outcome(state) === null;
+  drawEl.hidden = !(mine && (state.offered || claimable(state)));
+  drawEl.textContent = state.offered ? "Accept draw" : "Claim draw";
+  resignEl.disabled = !mine;
   const targets = new Set(
     selected === undefined
       ? []
@@ -176,20 +211,72 @@ const chess: TurnGame<State> = {
 
 const page = mountTurnPage(chess);
 
+function send(order: Order) {
+  if (!page.canMove()) return;
+  page.move(encodeOrder(order));
+  if (order.kind === "move") offerEl.checked = false;
+}
+
 function tap(square: number) {
   const state = page.state;
   if (!page.canMove()) return;
   selectedState = state;
-  const target = selected === undefined ? undefined : movesFrom(state, selected)
-    .find((move) =>
-      move.to === square &&
-      (move.promotion === undefined || move.promotion === "q")
-    );
-  if (target) {
-    page.move(encodeOrder({ kind: "move", move: target, offer: false }));
+  pending = undefined;
+  const target = selected === undefined
+    ? undefined
+    : movesFrom(state, selected).find((move) => move.to === square);
+  if (target?.promotion !== undefined) {
+    pending = { from: target.from, to: target.to, state };
+  } else if (target) {
+    send({ kind: "move", move: target, offer: offerEl.checked });
     selected = undefined;
   } else {
     selected = movesFrom(state, square).length > 0 ? square : undefined;
   }
   render(page.state, page.role);
 }
+
+function promote(promotion: Kind) {
+  const state = page.state;
+  const choice = pending;
+  pending = undefined;
+  selected = undefined;
+  const move = choice && choice.state === state
+    ? movesFrom(state, choice.from).find((candidate) =>
+      candidate.to === choice.to && candidate.promotion === promotion
+    )
+    : undefined;
+  if (move) send({ kind: "move", move, offer: offerEl.checked });
+  render(page.state, page.role);
+}
+
+promotionEl.onclick = (event) => {
+  const button = (event.target as Element).closest("button");
+  if (button) {
+    promote(button.dataset.kind as Kind);
+    return;
+  }
+  pending = undefined;
+  selected = undefined;
+  render(page.state, page.role);
+};
+
+promotionEl.querySelectorAll("button").forEach((button, index) => {
+  button.dataset.kind = PROMOTIONS[index];
+});
+
+drawEl.onclick = () => send({ kind: "draw" });
+
+resignEl.onclick = () => {
+  if (resignTimer !== undefined) {
+    disarmResign();
+    send({ kind: "resign" });
+    return;
+  }
+  resignEl.textContent = "Confirm resign";
+  resignTimer = setTimeout(disarmResign, 3000);
+};
+
+new MutationObserver(() => {
+  controlsEl.hidden = pingEl.hidden;
+}).observe(pingEl, { attributes: true, attributeFilter: ["hidden"] });

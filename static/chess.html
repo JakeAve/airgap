@@ -125,8 +125,37 @@
           aria-label="This move as a QR code; tap to see the board"
           hidden
         ></canvas>
+        <div id="promotion" class="promotion" role="group"
+          aria-label="Promote to" hidden>
+          <button aria-label="promote to queen" data-kind="q">
+            <svg class="piece" aria-hidden="true">
+              <use href="#piece-q" />
+            </svg>
+          </button>
+          <button aria-label="promote to rook" data-kind="r">
+            <svg class="piece" aria-hidden="true">
+              <use href="#piece-r" />
+            </svg>
+          </button>
+          <button aria-label="promote to bishop" data-kind="b">
+            <svg class="piece" aria-hidden="true">
+              <use href="#piece-b" />
+            </svg>
+          </button>
+          <button aria-label="promote to knight" data-kind="n">
+            <svg class="piece" aria-hidden="true">
+              <use href="#piece-n" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <button id="ping" hidden disabled>Ping</button>
+      <div id="controls" class="row" hidden>
+        <button id="ping" hidden disabled>Ping</button>
+        <label class="check"><input id="offer" type="checkbox" />
+        offer draw</label>
+        <button id="draw" hidden>Claim draw</button>
+        <button id="resign" disabled>Resign</button>
+      </div>
       <div id="again" class="row" hidden>
         <button id="switch" class="tx">Switch colours</button>
         <button id="replay">Replay</button>

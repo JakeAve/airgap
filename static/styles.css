@@ -1000,6 +1000,28 @@ body.guest {
   opacity: 1;
 }
 
+/* The promotion chooser covers the board until a piece is picked. */
+.board.chess .promotion {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4%;
+  background: var(--surface);
+}
+
+.board.chess .promotion button {
+  width: 20%;
+  min-width: 44px;
+  min-height: 44px;
+  aspect-ratio: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+
 .board-code {
   position: absolute;
   z-index: 2;
