@@ -69,6 +69,7 @@ async function ensureLink(): Promise<PageLink | undefined> {
       $<HTMLCanvasElement>("qr-canvas"),
       $<HTMLVideoElement>("camera"),
     );
+    page.sound.log = log;
     $("sample-rate").textContent = `${page.sampleRate} Hz`;
     $("worker-state").textContent = "ready";
     $("session-id").textContent = String(SESSION_ID);

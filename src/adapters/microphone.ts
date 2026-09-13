@@ -42,6 +42,10 @@ export class Microphone {
     return new Microphone(stream, source, node);
   }
 
+  get settings(): MediaTrackSettings {
+    return this.#stream.getAudioTracks()[0]?.getSettings() ?? {};
+  }
+
   onSamples(listener: (samples: Float32Array<ArrayBuffer>) => void): void {
     this.#node.port.onmessage = (
       event: MessageEvent<Float32Array<ArrayBuffer>>,

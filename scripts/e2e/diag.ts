@@ -141,6 +141,14 @@ try {
   }
   await page.click("#play-stop");
 
+  // An ultrasound send closes the rolling mic so iOS can leave its call audio
+  // mode, and must reopen it afterwards without the page asking.
+  await page.selectOption("#send-protocol", "ultrasound-fastest");
+  await page.click("#play");
+  await page.waitForTimeout(1000);
+  await page.click("#play-stop");
+  await receiveVia("receive via sound after an ultrasound send", "#listen");
+
   // The fixture message is a CALL, so a guest-role handshake should hear it and
   // answer, over sound with the reply also on screen as a code. With nobody to
   // ack, it gives up after its retries with the devices released, and Continue

@@ -158,11 +158,26 @@ its handshake form is a plain GET that builds the URL.
 
 ## Ultrasound
 
-Untested and not required. A live microphone makes iOS route output toward the
-earpiece, which barely responds above 15 kHz. `setSinkId` does not exist on iOS
-Safari, and `navigator.audioSession`'s `play-and-record` asks for the earpiece
-rather than away from it. Audible is the default and the only protocol the
-handshake has been proven on.
+Any live capture holds iOS Safari in `PlayAndRecord` + `VideoChat` mode (WebKit
+`MediaSessionManagerCocoa.mm`), which tunes output for speech; ultrasound did
+not get out with the mic open. Output still goes to the loudspeaker
+(`DefaultToSpeaker`) unless a page picks a sink, and `echoCancellation: false`
+already gets RemoteIO rather than the voice-processing unit. No page setting
+leaves that mode: `play-and-record` is the same mode, `playback` has no input,
+and `track.enabled = false` still counts as capturing.
+
+So `SoundTransport.send` on an ultrasound protocol stops the mic, sets
+`navigator.audioSession.type = "playback"`, waits `micSettleMs` (0 on an iPhone
+17; a knob), then suspends and resumes the AudioContext before playing, and
+afterwards restores `auto` and reopens the mic. The suspend/resume is the part
+that matters: closing the mic and switching the session was not enough on an
+iPhone 17, because the context's output unit keeps the call mode it started
+under until it restarts. The hardware rate stayed 48 kHz throughout, so it is
+not a sample-rate cut. An iPhone 8 on iOS 16 never needed any of this. With it,
+an iPhone 17 was heard by an iPhone 8 with the mic on. Safari does not re-prompt
+a page that captured within the last minute (ten with a user gesture; a reload
+clears it). This contradicts the rolling-mic rule above, which is why it is
+ultrasound only: fine for a turn game, too slow for the handshake's ack.
 
 ## Trying it
 

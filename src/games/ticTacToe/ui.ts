@@ -284,6 +284,7 @@ $("start").onclick = async () => {
   $("status").textContent = "opening devices";
   try {
     page = await openLink(code, camera);
+    page.sound.log = log;
     // The two phones face each other screen to screen.
     page.qr.facing = "user";
   } catch (err) {

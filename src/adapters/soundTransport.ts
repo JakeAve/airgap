@@ -10,6 +10,8 @@ export interface SoundTransportOptions {
   gapMs?: number;
   /** Passes through the frame sequence before `send` resolves on its own. */
   maxPasses?: number;
+  /** Wait after closing the microphone for iOS to leave its call audio mode before an ultrasound pass. */
+  micSettleMs?: number;
 }
 
 export class SoundTransport implements Transport {
@@ -18,6 +20,8 @@ export class SoundTransport implements Transport {
   #worker: CodecWorker;
   #workletUrl: string;
   #microphone: Microphone | undefined;
+  #wantsMicrophone = false;
+  #ultrasoundSends = 0;
   protocol: SoundProtocol;
   gapMs: number;
   /**
@@ -26,6 +30,9 @@ export class SoundTransport implements Transport {
    * Infinity, `send` loops until its signal aborts.
    */
   maxPasses: number;
+  micSettleMs: number;
+  /** Receives audio route diagnostics, for pages with a log. */
+  log: (line: string) => void = () => {};
 
   constructor(
     context: AudioContext,
@@ -39,6 +46,7 @@ export class SoundTransport implements Transport {
     this.protocol = options.protocol ?? "fastest";
     this.gapMs = options.gapMs ?? 150;
     this.maxPasses = options.maxPasses ?? Infinity;
+    this.micSettleMs = options.micSettleMs ?? 0;
   }
 
   async send(frames: Uint8Array[], signal: AbortSignal): Promise<void> {
@@ -47,7 +55,9 @@ export class SoundTransport implements Transport {
     const clips = await Promise.all(
       frames.map((f) => this.#worker.encodeSound(f, this.protocol)),
     );
+    const ultrasound = this.protocol.startsWith("ultrasound");
     try {
+      if (ultrasound) await this.#quietMicrophone(signal);
       for (let pass = 0; pass < this.maxPasses && !signal.aborted; pass++) {
         for (const clip of clips) {
           await speaker.play(clip, signal);
@@ -56,7 +66,61 @@ export class SoundTransport implements Transport {
       }
     } catch (err) {
       if (!signal.aborted) throw err;
+    } finally {
+      if (ultrasound) this.#restoreMicrophone();
     }
+  }
+
+  /**
+   * An open microphone holds iOS Safari in its video-call audio mode, and
+   * nothing a page sets gets playback out of it, so ultrasound only reaches the
+   * speaker with the microphone closed. Reopening within a minute does not
+   * re-prompt, and a turn game is not listening for its own move anyway.
+   */
+  async #quietMicrophone(signal: AbortSignal): Promise<void> {
+    this.#ultrasoundSends++;
+    if (!this.#microphone) return;
+    this.#closeMicrophone();
+    setAudioSessionType("playback");
+    await pause(this.micSettleMs, signal);
+    // The output unit keeps the call mode it started under until it restarts.
+    await this.#context.suspend();
+    await this.#context.resume();
+    this.log(
+      `mic closed for ultrasound, context ${this.#context.state}: ${audioRoute()}`,
+    );
+  }
+
+  #restoreMicrophone(): void {
+    if (--this.#ultrasoundSends > 0) return;
+    setAudioSessionType("auto");
+    if (this.#wantsMicrophone) {
+      this.#openMicrophone().catch((err) =>
+        this.log(`microphone reopen failed: ${err}`)
+      );
+    }
+  }
+
+  async #openMicrophone(): Promise<void> {
+    await this.#context.resume();
+    const microphone = await Microphone.open(this.#context, this.#workletUrl);
+    if (
+      !this.#wantsMicrophone || this.#ultrasoundSends > 0 || this.#microphone
+    ) {
+      microphone.close();
+      return;
+    }
+    microphone.onSamples((samples) => this.#worker.pushSound(samples));
+    this.#microphone = microphone;
+    const { sampleRate, echoCancellation } = microphone.settings;
+    this.log(
+      `mic open at ${sampleRate} Hz, echoCancellation ${echoCancellation}: ${audioRoute()}`,
+    );
+  }
+
+  #closeMicrophone(): void {
+    this.#microphone?.close();
+    this.#microphone = undefined;
   }
 
   /**
@@ -67,20 +131,23 @@ export class SoundTransport implements Transport {
    * simply decoded to nobody. Must be called from a user gesture on iOS.
    */
   async listen(): Promise<void> {
-    if (this.#microphone) return;
-    await this.#context.resume();
-    const microphone = await Microphone.open(this.#context, this.#workletUrl);
-    microphone.onSamples((samples) => this.#worker.pushSound(samples));
-    this.#microphone = microphone;
+    this.#wantsMicrophone = true;
+    if (this.#microphone || this.#ultrasoundSends > 0) return;
+    try {
+      await this.#openMicrophone();
+    } catch (err) {
+      this.#wantsMicrophone = false;
+      throw err;
+    }
   }
 
   get listening(): boolean {
-    return this.#microphone !== undefined;
+    return this.#wantsMicrophone;
   }
 
   stopListening(): void {
-    this.#microphone?.close();
-    this.#microphone = undefined;
+    this.#wantsMicrophone = false;
+    this.#closeMicrophone();
   }
 
   async receive(
@@ -100,6 +167,22 @@ export class SoundTransport implements Transport {
       if (!alreadyRolling) this.stopListening();
     }
   }
+}
+
+/** A fresh AudioContext takes the hardware rate, which call audio modes can lower. */
+function audioRoute(): string {
+  const probe = new AudioContext();
+  const rate = probe.sampleRate;
+  probe.close();
+  const session = (navigator as Navigator & { audioSession?: { type: string } })
+    .audioSession;
+  return `hardware ${rate} Hz, audioSession ${session?.type ?? "unsupported"}`;
+}
+
+function setAudioSessionType(type: "auto" | "playback"): void {
+  const session = (navigator as Navigator & { audioSession?: { type: string } })
+    .audioSession;
+  if (session) session.type = type;
 }
 
 function pause(ms: number, signal: AbortSignal): Promise<void> {
