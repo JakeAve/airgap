@@ -142,7 +142,13 @@ shooting and that ends the game; the winner answers with its own reveal, which
 is the loser's ack. The winner's reveal is then the unconfirmed last message,
 this page's TIME_WAIT: after winning, the page keeps listening at the count the
 loser's reveal carried, two back from its own, and re-sends its reveal each time
-a Ping brings that reveal round again.
+a Ping brings that reveal round again. The loser has the mirror case until the
+winner's reveal lands: it listens for that reveal and for the fatal shot two
+back, answering a repeat of the shot with its reveal again, and keeps Replay and
+Switch hidden meanwhile. `awaitedCounts` in `logic.ts` owns both windows, and
+every count transition (`shoot`, `receiveShot`, `reveal`, `receiveReveal`) lives
+there too, so the page never does count arithmetic. A REVEAL is dropped like an
+illegal shot unless we have lost or it makes our pending shot the win.
 
 `seq` is the message count mod 4 on both sides, the same parity trick that makes
 a phone's own echo unawaited, and both message types pass through one `accepts`.

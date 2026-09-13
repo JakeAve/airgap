@@ -10,9 +10,9 @@ import { drawQr } from "@/adapters/screen.ts";
 import { newSessionId, openLink, type PageLink } from "@/adapters/pageLink.ts";
 import {
   accepts,
+  awaitedCounts,
   canPlace,
   cells,
-  fire,
   type Fleet,
   type Game,
   GRID,
@@ -23,9 +23,12 @@ import {
   outcome,
   type Placement,
   randomFleet,
+  receiveReveal,
   receiveShot,
   type Result,
   REVEAL,
+  reveal,
+  shipAt,
   SHIPS,
   shipsLeft,
   shoot,
@@ -126,18 +129,22 @@ const bigLabel = big.querySelector(".sector-label") as HTMLElement;
 const bigCount = bigLabel.querySelector(".mono") as HTMLElement;
 const smallLabel = smallSector.querySelector(".sector-label") as HTMLElement;
 
-const chips = Array.from($("chips").querySelectorAll("button"));
-chips.forEach((chip, ship) => {
+const chips = SHIPS.map(({ name, length }, ship) => {
+  const chip = document.createElement("button");
+  chip.className = "chip";
   const count = document.createElement("span");
   count.className = "mono";
-  count.textContent = String(SHIPS[ship].length);
-  chip.replaceChildren(`${SHIPS[ship].name} `, count);
+  count.textContent = String(length);
+  chip.append(`${name} `, count);
   chip.onclick = () => {
     picked = picked === ship ? null : ship;
     note = undefined;
     render();
+    status();
   };
+  return chip;
 });
+$("chips").append(...chips);
 
 const hullMarkup = new Map<Element, string>();
 
@@ -246,7 +253,7 @@ function render() {
   ping.hidden = placing;
   fireButton.disabled = !game || !bigEnemy || selected === null ||
     session === undefined || !myTurn(game, role) || over !== null;
-  $("again").hidden = !over;
+  $("again").hidden = !over || (over === "lost" && !theirFleet);
 }
 
 function channels(): TransportId[] {
@@ -325,26 +332,8 @@ function transmit(m: Message) {
   status();
 }
 
-/**
- * The reveal carries no result, so the winner scores its own pending shot
- * from the fleet it was shown. Counts the reveal as one message like a shot.
- */
-function revealed(game: Game, fleet: Fleet): Game {
-  const mine = game.mine.slice();
-  const last = mine.at(-1);
-  if (last && last.result === null) {
-    const before = mine.slice(0, -1).map((s) => s.cell);
-    mine[mine.length - 1] = {
-      cell: last.cell,
-      result: fire(fleet, before, last.cell),
-    };
-  }
-  return { ...game, mine, count: game.count + 1 };
-}
-
-function shipAt(fleet: Fleet, cell: number): string {
-  const ship = fleet.findIndex((p, i) => cells(i, p).includes(cell));
-  return ship < 0 ? "fleet" : SHIPS[ship].name;
+function shipName(fleet: Fleet, cell: number): string {
+  return SHIPS[shipAt(fleet, cell)]?.name ?? "fleet";
 }
 
 function describeTurn(
@@ -365,15 +354,16 @@ function describeTurn(
     theirs.outcome === "miss"
       ? "they missed"
       : theirs.outcome === "sunk"
-      ? `they sank your ${shipAt(fleet, cell)}`
-      : `hit on your ${shipAt(fleet, cell)}`,
+      ? `they sank your ${shipName(fleet, cell)}`
+      : `hit on your ${shipName(fleet, cell)}`,
   );
   return parts.join(" · ");
 }
 
 /**
- * After winning, keep answering the loser's reveal (its Ping resends it), so
- * listen at the count that reveal carried rather than our own.
+ * Once the game is over, a repeat of the peer's last message is its Ping
+ * asking for our reply again: the loser's reveal to the winner, the fatal
+ * shot to the loser still waiting on the winner's reveal.
  */
 async function awaitMove() {
   receiving?.abort();
@@ -387,7 +377,7 @@ async function awaitMove() {
   ) {
     return;
   }
-  const count = result === "won" ? game.count - 2 : game.count;
+  const counts = awaitedCounts(game);
   const via: TransportId[] = [];
   if (page.sound.listening) via.push("sound");
   if (page.qr.watching) via.push("qr");
@@ -398,23 +388,25 @@ async function awaitMove() {
     let m: Message;
     try {
       m = await page.link.receive(via, ctl.signal, {
-        accept: (leg) => accepts(count, session, leg, previousSession),
+        accept: (leg) => accepts(counts, session, leg, previousSession),
       });
     } catch (err) {
       if (!ctl.signal.aborted) log(`receive failed: ${err}`);
       return;
     }
-    if (m.type === REVEAL && theirFleet) {
+    if (result === "won" ? m.type === REVEAL : result && m.type === SHOT) {
       log(`received ${describe(m)} again`);
       if (lastSent) transmit(lastSent);
       continue;
     }
     const shot = m.type === SHOT ? decodeShot(m.payload) : null;
     const revealedFleet = m.type === REVEAL ? decodeReveal(m.payload) : null;
-    if (
-      (shot === null || game.theirs.some((s) => s.cell === shot.cell)) &&
-      revealedFleet === null
-    ) {
+    const legal = shot
+      ? result === null && !game.theirs.some((s) => s.cell === shot.cell)
+      : revealedFleet !== null &&
+        (result === "lost" ||
+          outcome(receiveReveal(game, revealedFleet)) === "won");
+    if (!legal) {
       log(`dropped illegal ${describe(m)}`);
       continue;
     }
@@ -441,7 +433,7 @@ async function awaitMove() {
       }
     } else if (revealedFleet) {
       theirFleet = revealedFleet;
-      game = revealed(game, revealedFleet);
+      game = receiveReveal(game, revealedFleet);
       if (outcome(game) === "lost") moved(game);
       else sendReveal();
     }
@@ -468,7 +460,7 @@ function sendReveal() {
     payload: encodeReveal(game.fleet),
   };
   ping.disabled = false;
-  moved({ ...game, count: game.count + 1 });
+  moved(reveal(game));
   transmit(lastSent);
 }
 

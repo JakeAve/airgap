@@ -74,8 +74,12 @@ export interface Result {
   ship: number | null;
 }
 
+export function shipAt(fleet: Fleet, cell: number): number {
+  return fleet.findIndex((p, i) => cells(i, p).includes(cell));
+}
+
 export function fire(fleet: Fleet, before: number[], cell: number): Result {
-  const ship = fleet.findIndex((p, i) => cells(i, p).includes(cell));
+  const ship = shipAt(fleet, cell);
   if (ship < 0) return { outcome: "miss", ship: null };
   const hit = new Set(before).add(cell);
   return cells(ship, fleet[ship]).every((c) => hit.has(c))
@@ -139,6 +143,25 @@ export function receiveShot(
   };
 }
 
+/** The loser's reveal ends its game; it counts as one message like a shot. */
+export function reveal(game: Game): Game {
+  return { ...game, count: game.count + 1 };
+}
+
+/** A reveal carries no result, so my pending shot is scored from the fleet shown. */
+export function receiveReveal(game: Game, fleet: Fleet): Game {
+  const mine = game.mine.slice();
+  const last = mine.at(-1);
+  if (last && last.result === null) {
+    const before = mine.slice(0, -1).map((shot) => shot.cell);
+    mine[mine.length - 1] = {
+      cell: last.cell,
+      result: fire(fleet, before, last.cell),
+    };
+  }
+  return { ...game, mine, count: game.count + 1 };
+}
+
 export function lastResult(game: Game): Result | null {
   return game.theirs.at(-1)?.result ?? null;
 }
@@ -156,17 +179,35 @@ export function outcome(game: Game): "won" | "lost" | null {
 }
 
 /**
+ * The counts the next incoming message may carry: the peer's next message,
+ * and once the game is over, a repeat of its last one, which means my reply
+ * was lost and should go again. Nothing answers the winner's reveal, so only
+ * the repeat is left for it.
+ */
+export function awaitedCounts(game: Game): number[] {
+  switch (outcome(game)) {
+    case "won":
+      return [game.count - 2];
+    case "lost":
+      return [game.count, game.count - 2];
+    default:
+      return [game.count];
+  }
+}
+
+/**
  * `previous` is the last game's session: after a replay its final shot can
  * still be in the air, and on a fresh game it would pass for shot 0.
  */
 export function accepts(
-  count: number,
+  counts: number[],
   session: number | undefined,
   leg: Leg,
   previous?: number,
 ): boolean {
   if (leg.type !== SHOT && leg.type !== REVEAL) return false;
-  if (leg.seq !== count % 4) return false;
+  const count = counts.find((c) => c >= 0 && leg.seq === c % 4);
+  if (count === undefined) return false;
   return session === undefined
     ? count === 0 && leg.session !== previous
     : leg.session === session;

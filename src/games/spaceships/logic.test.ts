@@ -1,7 +1,9 @@
 import { assertEquals, assertThrows } from "@std/assert";
+import type { Leg } from "@/lib/frames/frames.ts";
 import {
   accepts,
   allSunk,
+  awaitedCounts,
   canPlace,
   cells,
   fire,
@@ -13,7 +15,10 @@ import {
   newGame,
   outcome,
   randomFleet,
+  receiveReveal,
   receiveShot,
+  reveal,
+  shipAt,
   SHIPS,
   shipsLeft,
   shoot,
@@ -76,6 +81,11 @@ Deno.test("randomFleet places every ship legally", () => {
       SHIPS.reduce((n, s) => n + s.length, 0),
     );
   }
+});
+
+Deno.test("shipAt names the ship on a cell or -1", () => {
+  assertEquals(shipAt(MINE, 12), 1);
+  assertEquals(shipAt(MINE, 99), -1);
 });
 
 Deno.test("fire reports miss, hit, and sunk with the ship only when sunk", () => {
@@ -155,32 +165,102 @@ Deno.test("shipsLeft counts down with my sunk results", () => {
   assertEquals(shipsLeft(game), 4);
 });
 
-Deno.test("accepts a shot or reveal whose seq and session match the count", () => {
-  assertEquals(accepts(0, 7, { type: SHOT, seq: 0, session: 7 }), true);
-  assertEquals(accepts(0, 7, { type: REVEAL, seq: 0, session: 7 }), true);
-  assertEquals(accepts(1, 7, { type: SHOT, seq: 1, session: 7 }), true);
-  assertEquals(accepts(4, 7, { type: SHOT, seq: 0, session: 7 }), true);
+Deno.test("reveal counts one message; receiveReveal scores the pending shot", () => {
+  const lost = reveal(newGame(MINE));
+  assertEquals(lost.count, 1);
+  let game = shoot(newGame(MINE), 4);
+  game = receiveReveal(game, THEIRS);
+  assertEquals(game.count, 2);
+  assertEquals(game.mine, [{
+    cell: 4,
+    result: { outcome: "hit", ship: null },
+  }]);
+  assertEquals(receiveReveal(newGame(MINE), THEIRS).mine, []);
+});
+
+Deno.test("accepts a shot or reveal whose seq and session match a count", () => {
+  assertEquals(accepts([0], 7, { type: SHOT, seq: 0, session: 7 }), true);
+  assertEquals(accepts([0], 7, { type: REVEAL, seq: 0, session: 7 }), true);
+  assertEquals(accepts([1], 7, { type: SHOT, seq: 1, session: 7 }), true);
+  assertEquals(accepts([4], 7, { type: SHOT, seq: 0, session: 7 }), true);
+  assertEquals(accepts([6, 4], 7, { type: SHOT, seq: 0, session: 7 }), true);
 });
 
 Deno.test("accepts rejects a stale seq, a foreign session, and a bad type", () => {
-  assertEquals(accepts(1, 7, { type: SHOT, seq: 0, session: 7 }), false);
-  assertEquals(accepts(0, 7, { type: SHOT, seq: 0, session: 9 }), false);
-  assertEquals(accepts(0, 7, { type: REVEAL + 1, seq: 0, session: 7 }), false);
+  assertEquals(accepts([1], 7, { type: SHOT, seq: 0, session: 7 }), false);
+  assertEquals(accepts([0], 7, { type: SHOT, seq: 0, session: 9 }), false);
+  assertEquals(
+    accepts([0], 7, { type: REVEAL + 1, seq: 0, session: 7 }),
+    false,
+  );
+  assertEquals(accepts([1, -1], 7, { type: SHOT, seq: 3, session: 7 }), false);
 });
 
 Deno.test("accepts any session at count 0 when ours is unknown", () => {
   assertEquals(
-    accepts(0, undefined, { type: SHOT, seq: 0, session: 42 }),
+    accepts([0], undefined, { type: SHOT, seq: 0, session: 42 }),
     true,
   );
   assertEquals(
-    accepts(1, undefined, { type: SHOT, seq: 1, session: 42 }),
+    accepts([1], undefined, { type: SHOT, seq: 1, session: 42 }),
     false,
   );
 });
 
 Deno.test("accepts ignores the previous game's session when joining a replay", () => {
   const leg = { type: SHOT, seq: 0, session: 42 };
-  assertEquals(accepts(0, undefined, leg, 42), false);
-  assertEquals(accepts(0, undefined, leg, 7), true);
+  assertEquals(accepts([0], undefined, leg, 42), false);
+  assertEquals(accepts([0], undefined, leg, 7), true);
+});
+
+Deno.test("awaitedCounts is the count until the game ends, then the repeats", () => {
+  const game = newGame(MINE);
+  assertEquals(awaitedCounts(game), [0]);
+  assertEquals(awaitedCounts(shoot(game, 0)), [1]);
+});
+
+Deno.test("both reveals arrive at the count the other side awaits", () => {
+  const SESSION = 7;
+  let host = newGame(MINE);
+  let guest = newGame(THEIRS);
+  const send = (from: Game, type: number): Leg => ({
+    type,
+    seq: from.count % 4,
+    session: SESSION,
+  });
+  const lands = (leg: Leg, at: Game) =>
+    assertEquals(accepts(awaitedCounts(at), SESSION, leg), true);
+  let fatal: Leg | undefined;
+  let theirCell = 99;
+  for (const cell of fleetCells(THEIRS)) {
+    const shot = send(host, SHOT);
+    lands(shot, guest);
+    host = shoot(host, cell);
+    guest = receiveShot(guest, lastResult(host), cell);
+    if (outcome(guest) === "lost") {
+      fatal = shot;
+      break;
+    }
+    const back = send(guest, SHOT);
+    lands(back, host);
+    guest = shoot(guest, theirCell);
+    host = receiveShot(host, lastResult(guest), theirCell--);
+  }
+  assertEquals(outcome(host), null);
+
+  const loserReveal = send(guest, REVEAL);
+  guest = reveal(guest);
+  lands(fatal!, guest);
+  lands(loserReveal, host);
+  host = receiveReveal(host, THEIRS);
+  assertEquals(outcome(host), "won");
+
+  const winnerReveal = send(host, REVEAL);
+  host = reveal(host);
+  lands(loserReveal, host);
+  assertEquals(accepts(awaitedCounts(host), SESSION, winnerReveal), false);
+  lands(winnerReveal, guest);
+  guest = receiveReveal(guest, MINE);
+  assertEquals(outcome(guest), "lost");
+  assertEquals(host.count, guest.count);
 });

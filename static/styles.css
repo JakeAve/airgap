@@ -772,7 +772,7 @@ body.viewfinder.guest {
 
 /* Room left for the header, status, log, and the buttons under the board. */
 .board {
-  --size: min(100vw - 1.5rem, 100dvh - 20rem, 36rem);
+  --size: max(240px, min(100vw - 1.5rem, 100dvh - 20rem, 36rem));
   display: grid;
   grid-template: repeat(3, 1fr) / repeat(3, 1fr);
   width: var(--size);
@@ -866,9 +866,16 @@ body.guest {
 }
 
 /* Spaceships: two 10x10 sectors, the big one showing whichever side you asked
-   for. Cells are square, so the grid needs no height of its own. */
+   for. Cells are square, so the grid needs no height of its own. The owner's
+   hulls sit on the sector and the shooter's marks land on them; the enemy
+   sector swaps the two so one rule set draws either fleet. */
 .sector {
-  --size: min(100vw - 2rem, 100dvh - 24rem, 36rem);
+  --size: max(240px, min(100vw - 2rem, 100dvh - 24rem, 36rem));
+  --owner: var(--me);
+  --owner-rgb: var(--me-rgb);
+  --shooter: var(--them);
+  --shooter-rgb: var(--them-rgb);
+  --shooter-core: var(--them-core);
   position: relative;
   display: grid;
   grid-template-columns: repeat(10, 1fr);
@@ -901,6 +908,14 @@ body.guest {
   color: var(--dim);
 }
 
+.sector.enemy {
+  --owner: var(--them);
+  --owner-rgb: var(--them-rgb);
+  --shooter: var(--me);
+  --shooter-rgb: var(--me-rgb);
+  --shooter-core: var(--me-core);
+}
+
 .sector.small {
   --size: 120px;
   gap: 1px;
@@ -911,8 +926,8 @@ button:has(.sector.small) {
 }
 
 .sector > .hit {
-  background: var(--me);
-  border-color: var(--me-core);
+  background: var(--shooter);
+  border-color: var(--shooter-core);
 }
 
 .sector > .miss {
@@ -924,9 +939,9 @@ button:has(.sector.small) {
 }
 
 .sector > .sel {
-  outline: 2px solid var(--me);
+  outline: 2px solid var(--shooter);
   outline-offset: -2px;
-  box-shadow: 0 0 12px rgba(var(--me-rgb), 0.45);
+  box-shadow: 0 0 12px rgba(var(--shooter-rgb), 0.45);
 }
 
 /* Sits over the cells only, so the label row is outside its box. */
@@ -938,23 +953,13 @@ button:has(.sector.small) {
   aspect-ratio: 1;
   overflow: visible;
   pointer-events: none;
-  color: var(--me);
+  color: var(--owner);
 }
 
 .hull .hit {
-  stroke: var(--them);
-  filter: drop-shadow(0 0 6px rgba(var(--them-rgb), 0.9));
+  stroke: var(--shooter);
+  filter: drop-shadow(0 0 6px rgba(var(--shooter-rgb), 0.9));
   animation: damage 500ms ease-out both;
-}
-
-/* The enemy sector shows their hulls, damaged by my shots. */
-.sector.enemy .hull {
-  color: var(--them);
-}
-
-.sector.enemy .hull .hit {
-  stroke: var(--me);
-  filter: drop-shadow(0 0 6px rgba(var(--me-rgb), 0.9));
 }
 
 .chips {
