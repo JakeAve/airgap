@@ -40,6 +40,13 @@ once, or set `CHROMIUM_PATH` (the web sandbox's session hook does this).
 Always run `deno task pre-commit` (or let the git hook run it) before
 committing.
 
+## Workflow
+
+Default: work in a git worktree branched from `origin/main`, not the current
+checkout. `git fetch origin main` first; if local `main` is stale, `git pull`
+it. Open a PR when the task is done — don't commit straight to the branch you
+started in.
+
 ## Directory Map
 
 - `static/` — copied verbatim into `dist/`: `index.html`, `styles.css`,
