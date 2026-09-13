@@ -9,8 +9,7 @@ import {
   SHIPS,
 } from "./logic.ts";
 
-export const SHOT = 0;
-export const REVEAL = 1;
+export { REVEAL, SHOT } from "./logic.ts";
 
 const OUTCOMES = ["miss", "hit", "sunk"] as const;
 

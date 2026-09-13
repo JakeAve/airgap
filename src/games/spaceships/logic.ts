@@ -1,5 +1,8 @@
 import type { Leg } from "@/lib/frames/frames.ts";
-import { REVEAL, SHOT } from "./codec.ts";
+
+/** Message kinds: a turn's shot, and the fleet shown once the game is over. */
+export const SHOT = 0;
+export const REVEAL = 1;
 
 export const GRID = 10;
 const CELLS = GRID * GRID;
