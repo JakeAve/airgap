@@ -256,28 +256,95 @@ function jumperMoves(ground: Set<string>, from: Hex): Hex[] {
   return out;
 }
 
-function heatsinkMoves(state: State, from: Hex): Hex[] {
-  const height = (hex: Hex) => stackAt(state, hex).length;
+type Height = (hex: Hex) => number;
+
+/** Stack heights with `moving` lifted out, so its own hex reads as the level it stands on. */
+function heights(state: State, moving: number): Height {
+  return (hex) => {
+    const stack = stackAt(state, hex);
+    return stack.includes(moving) ? stack.length - 1 : stack.length;
+  };
+}
+
+/**
+ * A climbing step is gated when both hexes beside it stand taller than the
+ * step's start and end, and adrift when all four are ground level.
+ */
+function climbs(height: Height, from: Hex, dir: number): boolean {
+  const to = height(neighbour(from, dir));
+  const left = height(neighbour(from, (dir + 5) % 6));
+  const right = height(neighbour(from, (dir + 1) % 6));
+  const gated = Math.min(left, right) > Math.max(height(from), to);
+  const adrift = height(from) + to + left + right === 0;
+  return !gated && !adrift;
+}
+
+function heatsinkMoves(state: State, piece: number, from: Hex): Hex[] {
+  const height = heights(state, piece);
   const out: Hex[] = [];
   for (let dir = 0; dir < 6; dir++) {
-    const to = neighbour(from, dir);
-    const left = height(neighbour(from, (dir + 5) % 6));
-    const right = height(neighbour(from, (dir + 1) % 6));
-    const gated =
-      Math.min(left, right) > Math.max(height(from) - 1, height(to));
-    const adrift = height(from) === 1 && height(to) === 0 && left + right === 0;
-    if (!gated && !adrift) out.push(to);
+    if (climbs(height, from, dir)) out.push(neighbour(from, dir));
   }
   return out;
 }
 
-function destinations(state: State, piece: number, from: Hex): Hex[] {
-  const kind = kindOf(piece);
-  if (kind === "heatsink") return heatsinkMoves(state, from);
+function probeMoves(state: State, piece: number, from: Hex): Hex[] {
+  const height = heights(state, piece);
+  const found = new Map<string, Hex>();
+  for (let a = 0; a < 6; a++) {
+    const one = neighbour(from, a);
+    if (height(one) === 0 || !climbs(height, from, a)) continue;
+    for (let b = 0; b < 6; b++) {
+      const two = neighbour(one, b);
+      if (height(two) === 0 || !climbs(height, one, b)) continue;
+      for (let c = 0; c < 6; c++) {
+        const to = neighbour(two, c);
+        if (height(to) > 0 || key(to) === key(from)) continue;
+        if (climbs(height, two, c)) found.set(key(to), to);
+      }
+    }
+  }
+  return [...found.values()];
+}
+
+function copiedKinds(state: State, from: Hex): Set<Kind> {
+  const kinds = new Set<Kind>();
+  for (let dir = 0; dir < 6; dir++) {
+    const top = topOf(state, neighbour(from, dir));
+    if (top !== undefined && kindOf(top) !== "fpga") kinds.add(kindOf(top));
+  }
+  return kinds;
+}
+
+function destinations(
+  state: State,
+  piece: number,
+  from: Hex,
+  kind: Kind,
+): Hex[] {
+  switch (kind) {
+    case "heatsink":
+      return heatsinkMoves(state, piece, from);
+    case "probe":
+      return probeMoves(state, piece, from);
+    case "fpga": {
+      if (stackAt(state, from).length > 1) {
+        return heatsinkMoves(state, piece, from);
+      }
+      const found = new Map<string, Hex>();
+      for (const copied of copiedKinds(state, from)) {
+        for (const to of destinations(state, piece, from, copied)) {
+          found.set(key(to), to);
+        }
+      }
+      return [...found.values()];
+    }
+  }
   const ground = new Set(state.stacks.keys());
   ground.delete(key(from));
   switch (kind) {
     case "motherboard":
+    case "crane":
       return groundSteps(ground, from);
     case "packet":
       return packetMoves(ground, from);
@@ -285,9 +352,34 @@ function destinations(state: State, piece: number, from: Hex): Hex[] {
       return clockMoves(ground, from);
     case "jumper":
       return jumperMoves(ground, from);
-    default:
-      return [];
   }
+}
+
+function throwsFrom(state: State, piece: number, hub: Hex): boolean {
+  if (stackAt(state, hub).length > 1) return false;
+  const kind = kindOf(piece);
+  return kind === "crane" ||
+    (kind === "fpga" && copiedKinds(state, hub).has("crane"));
+}
+
+/** Lift an unstacked neighbour over the hub and drop it on an empty hex beside the hub. */
+function throws(state: State, hub: Hex): Move[] {
+  const out: Move[] = [];
+  for (let dir = 0; dir < 6; dir++) {
+    const at = neighbour(hub, dir);
+    const stack = stackAt(state, at);
+    if (stack.length !== 1) continue;
+    const piece = stack[0];
+    if (state.last?.piece === piece || !canLift(state, at)) continue;
+    const height = heights(state, piece);
+    if (!climbs(height, at, (dir + 3) % 6)) continue;
+    for (let drop = 0; drop < 6; drop++) {
+      const to = neighbour(hub, drop);
+      if (height(to) > 0 || key(to) === key(at)) continue;
+      if (climbs(height, hub, drop)) out.push({ piece, to, thrown: true });
+    }
+  }
+  return out;
 }
 
 function movesFor(state: State, side: Side): Move[] {
@@ -304,14 +396,23 @@ function movesFor(state: State, side: Side): Move[] {
     }
   }
   if (!motherboardDown) return out;
+  const thrown = new Map<string, Move>();
   for (const piece of mine) {
     const from = hexOf(state, piece)!;
-    if (topOf(state, from) !== piece || !canLift(state, from)) continue;
-    for (const to of destinations(state, piece, from)) {
-      out.push({ piece, to, thrown: false });
+    if (topOf(state, from) !== piece) continue;
+    const frozen = state.last?.thrown === true && state.last.piece === piece;
+    if (!frozen && canLift(state, from)) {
+      for (const to of destinations(state, piece, from, kindOf(piece))) {
+        out.push({ piece, to, thrown: false });
+      }
+    }
+    if (throwsFrom(state, piece, from)) {
+      for (const m of throws(state, from)) {
+        thrown.set(`${m.piece}@${key(m.to)}`, m);
+      }
     }
   }
-  return out;
+  return [...out, ...thrown.values()];
 }
 
 function surrounded(state: State, side: Side): boolean {

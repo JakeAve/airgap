@@ -20,6 +20,7 @@ import {
 } from "./logic.ts";
 
 const OFF: Options = { fpga: false, probe: false, crane: false };
+const ON: Options = { fpga: true, probe: true, crane: true };
 
 const h = (slot: number) => pieceId("host", slot);
 const g = (slot: number) => pieceId("guest", slot);
@@ -28,6 +29,9 @@ const CK = 1;
 const HS = 3;
 const JP = 5;
 const PK = 8;
+const FP = 11;
+const PR = 12;
+const CR = 13;
 
 const at = (q: number, r: number): Hex => ({ q, r });
 
@@ -51,13 +55,26 @@ function hexes(moves: Move[]): string[] {
   return [...new Set(moves.map((m) => key(m.to)))].sort();
 }
 
+function own(state: State, piece: number): Move[] {
+  return legalMoves(state).filter((m) => m.piece === piece && !m.thrown);
+}
+
+function thrown(state: State, piece: number): Move[] {
+  return legalMoves(state).filter((m) => m.piece === piece && m.thrown);
+}
+
 Deno.test("host opens at the origin with anything but the Motherboard", () => {
   const moves = legalMoves(initialState(OFF));
   assertEquals(moves.length, 10);
   assertEquals(hexes(moves), ["0,0"]);
   assertEquals(moves.some((m) => kindOf(m.piece) === "motherboard"), false);
-  assertEquals(moves.some((m) => kindOf(m.piece) === "fpga"), false);
+  const kinds = new Set(moves.map((m) => kindOf(m.piece)));
+  assertEquals(
+    kinds.has("fpga") || kinds.has("probe") || kinds.has("crane"),
+    false,
+  );
   assertEquals(legalMoves(initialState({ ...OFF, crane: true })).length, 11);
+  assertEquals(legalMoves(initialState(ON)).length, 13);
 });
 
 Deno.test("guest's first piece must touch host's piece", () => {
@@ -241,4 +258,149 @@ Deno.test("direction inverts neighbour for every direction", () => {
   }
   assertEquals(direction(from, from), null);
   assertEquals(direction(from, at(5, -2)), null);
+});
+
+const LINE: [number, Hex][] = [[h(MB), at(0, 0)], [g(MB), at(1, 0)]];
+
+Deno.test("an FPGA moves as any uncovered neighbour of either colour", () => {
+  const beside = position([...LINE, [h(FP), at(-1, 0)]]);
+  assertEquals(hexes(own(beside, h(FP))), ["-1,1", "0,-1"]);
+
+  for (const slot of [CK, HS, JP, PK, PR, CR]) {
+    const copy = position([...LINE, [g(slot), at(-1, 0)], [h(FP), at(-2, 0)]]);
+    const real = position([...LINE, [g(slot), at(-1, 0)], [
+      h(slot),
+      at(-2, 0),
+    ]]);
+    const expected = hexes(own(real, h(slot)));
+    assertEquals(expected.length > 0, true, kindOf(h(slot)));
+    assertEquals(hexes(own(copy, h(FP))), expected, kindOf(h(slot)));
+  }
+
+  const covered = position([...LINE, [g(HS), at(-1, 0)], [g(CK), at(-1, 0)], [
+    h(FP),
+    at(-2, 0),
+  ]]);
+  assertEquals(hexes(own(covered, h(FP))), ["0,1", "1,-1"]);
+});
+
+Deno.test("an FPGA on top is a Heatsink; beside only an FPGA it is stuck", () => {
+  const top = position([...LINE, [g(CK), at(-1, 0)], [h(FP), at(-1, 0)]]);
+  assertEquals(
+    hexes(own(top, h(FP))),
+    ["-1,-1", "-1,1", "-2,0", "-2,1", "0,-1", "0,0"],
+  );
+
+  const alone = position([...LINE, [g(FP), at(-1, 0)], [h(FP), at(-2, 0)]]);
+  assertEquals(legalMoves(alone).length > 0, true);
+  assertEquals(legalMoves(alone).some((m) => m.piece === h(FP)), false);
+});
+
+Deno.test("an FPGA beside a Crane throws", () => {
+  const state = position([...LINE, [g(CR), at(-1, 0)], [h(FP), at(-1, 1)]]);
+  assertEquals(hexes(thrown(state, g(CR))), ["-1,2", "-2,1", "-2,2", "0,1"]);
+  assertEquals(thrown(state, h(MB)), []);
+  const lifted = position([...LINE, [g(CR), at(-1, 0)], [g(CK), at(-1, 1)], [
+    h(FP),
+    at(-1, 1),
+  ]]);
+  assertEquals(legalMoves(lifted).some((m) => m.thrown), false);
+});
+
+Deno.test("a Probe steps up, up, then down onto an empty hex", () => {
+  const state = position([...LINE, [h(PR), at(-1, 0)]]);
+  assertEquals(hexes(own(state, h(PR))), ["0,1", "1,-1", "1,1", "2,-1", "2,0"]);
+
+  const bridge = position([[h(MB), at(0, 0)], [h(PR), at(1, 0)], [
+    g(MB),
+    at(2, 0),
+  ]]);
+  assertEquals(own(bridge, h(PR)), []);
+
+  const gate = position([
+    [h(MB), at(0, 0)],
+    [g(MB), at(1, 0)],
+    [g(HS), at(1, 0)],
+    [g(CK), at(0, -1)],
+    [g(HS + 1), at(0, -1)],
+    [h(CK), at(-1, 1)],
+    [h(PR), at(-2, 2)],
+  ]);
+  assertEquals(hexes(own(gate, h(PR))), ["-1,0", "0,1"]);
+});
+
+const HUB: [number, Hex][] = [
+  [h(CR), at(0, 0)],
+  [h(MB), at(-1, 0)],
+  [g(MB), at(1, 0)],
+  [g(JP), at(1, -1)],
+];
+
+Deno.test("a Crane slides one step or throws a neighbour of either colour", () => {
+  const line = position([...LINE, [h(CR), at(-1, 0)]]);
+  assertEquals(hexes(own(line, h(CR))), ["-1,1", "0,-1"]);
+  assertEquals(legalMoves(line).some((m) => m.thrown), false);
+
+  const state = position(HUB);
+  for (const piece of [h(MB), g(MB), g(JP)]) {
+    assertEquals(hexes(thrown(state, piece)), ["-1,1", "0,-1", "0,1"]);
+  }
+  assertEquals(hexes(own(state, h(MB))), ["-1,1", "0,-1"]);
+  assertEquals(findMove(state, move(h(MB), at(0, 1))), null);
+
+  const next = apply(state, { piece: g(MB), to: at(0, 1), thrown: true });
+  assertEquals(next.stacks.get("0,1"), [g(MB)]);
+  assertEquals(next.stacks.has("1,0"), false);
+  assertEquals(next.last, { piece: g(MB), thrown: true });
+  assertEquals(turn(next), "guest");
+  assertEquals(legalMoves(next).length > 0, true);
+  assertEquals(legalMoves(next).some((m) => m.piece === g(MB)), false);
+});
+
+Deno.test("a Crane cannot throw what moved last turn", () => {
+  const moved = { ...position(HUB), last: { piece: g(JP), thrown: false } };
+  assertEquals(thrown(moved, g(JP)), []);
+  assertEquals(thrown(moved, g(MB)).length > 0, true);
+
+  const rethrow = { ...position(HUB), last: { piece: g(JP), thrown: true } };
+  assertEquals(thrown(rethrow, g(JP)), []);
+
+  const frozen = {
+    ...position(HUB, "guest"),
+    last: { piece: g(JP), thrown: true },
+  };
+  assertEquals(own(frozen, g(JP)), []);
+  assertEquals(own({ ...frozen, last: null }, g(JP)).length > 0, true);
+});
+
+Deno.test("a throw respects One Hive and the height gate", () => {
+  const bridge = position([...HUB.slice(0, 3), [g(JP), at(2, 0)]]);
+  assertEquals(thrown(bridge, g(MB)), []);
+  assertEquals(thrown(bridge, h(MB)).length > 0, true);
+
+  const climb = position([
+    ...HUB.slice(0, 3),
+    [g(CK), at(0, -1)],
+    [g(HS), at(0, -1)],
+    [g(PK), at(-1, 1)],
+    [g(HS + 1), at(-1, 1)],
+  ]);
+  assertEquals(thrown(climb, h(MB)), []);
+  assertEquals(hexes(thrown(climb, g(MB))), ["0,1", "1,-1"]);
+
+  const drop = position([
+    [h(CR), at(0, 0)],
+    [h(MB), at(-1, 0)],
+    [g(MB), at(0, -1)],
+    [g(HS), at(0, -1)],
+    [g(CK), at(1, 0)],
+    [g(HS + 1), at(1, 0)],
+  ]);
+  assertEquals(hexes(thrown(drop, h(MB))), ["-1,1", "0,1"]);
+});
+
+Deno.test("a covered Crane cannot throw", () => {
+  const state = position([...HUB, [g(HS), at(0, 0)]]);
+  assertEquals(legalMoves(state).some((m) => m.thrown), false);
+  assertEquals(own(state, h(CR)), []);
 });
