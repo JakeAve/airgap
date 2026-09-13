@@ -7,21 +7,17 @@ import {
   inCheck,
   initialState,
   type Kind,
+  kingSquare,
   legalMoves,
   type Order,
-  type Outcome,
+  other,
   outcome,
   type Side,
   squareName,
   type State,
   turn,
 } from "./logic.ts";
-import {
-  decodeOrder,
-  describeOrder,
-  encodeOrder,
-  PROMOTIONS,
-} from "./codec.ts";
+import { decodeOrder, describeOrder, encodeOrder } from "./codec.ts";
 
 const SIDE_LENGTH = 8;
 const KIND_NAMES: Record<Kind, string> = {
@@ -34,14 +30,12 @@ const KIND_NAMES: Record<Kind, string> = {
 };
 
 const sideOf = (role: Role): Side => role === "host" ? "white" : "black";
-const other = (side: Side): Side => side === "white" ? "black" : "white";
 
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const boardEl = $("board");
 const promotionEl = $("promotion");
 const controlsEl = $("controls");
-const pingEl = $<HTMLButtonElement>("ping");
 const offerEl = $<HTMLInputElement>("offer");
 const drawEl = $<HTMLButtonElement>("draw");
 const resignEl = $<HTMLButtonElement>("resign");
@@ -92,14 +86,6 @@ const cells = Array.from({ length: SIDE_LENGTH * SIDE_LENGTH }, (_, cell) => {
 const movesFrom = (state: State, square: number) =>
   legalMoves(state).filter((move) => move.from === square);
 
-function kingInCheck(state: State): number {
-  if (!inCheck(state)) return -1;
-  const side = turn(state);
-  return state.board.findIndex((piece) =>
-    piece !== null && piece.side === side && piece.kind === "k"
-  );
-}
-
 function disarmResign() {
   clearTimeout(resignTimer);
   resignTimer = undefined;
@@ -116,7 +102,8 @@ function render(state: State, role: Role) {
   promotionEl.hidden = pending === undefined;
   promotionEl.classList.toggle("x", turn(state) === "white");
   promotionEl.classList.toggle("o", turn(state) === "black");
-  const mine = turn(state) === sideOf(role) && outcome(state) === null;
+  const result = outcome(state);
+  const mine = turn(state) === sideOf(role) && result === null;
   drawEl.hidden = !(mine && (state.offered || claimable(state)));
   drawEl.textContent = state.offered ? "Accept draw" : "Claim draw";
   resignEl.disabled = !mine;
@@ -126,7 +113,7 @@ function render(state: State, role: Role) {
       : movesFrom(state, selected).map((move) => move.to),
   );
   const last = lastMove.get(state) ?? [];
-  const check = kingInCheck(state);
+  const check = inCheck(state) ? kingSquare(state.board, turn(state)) : -1;
   cells.forEach(({ el, piece, use, file, rank }, cell) => {
     const square = squareAt(cell, role);
     const occupant = state.board[square];
@@ -153,10 +140,11 @@ function render(state: State, role: Role) {
       }`,
     );
   });
-  boardEl.classList.toggle("over", outcome(state) !== null);
+  boardEl.classList.toggle("over", result !== null);
 }
 
-function verdict(result: Outcome, side: Side): string {
+function verdict(state: State, side: Side): string {
+  const result = outcome(state)!;
   const you = (winner: Side) => `you ${winner === side ? "win" : "lose"}`;
   switch (result.kind) {
     case "checkmate":
@@ -170,7 +158,9 @@ function verdict(result: Outcome, side: Side): string {
         case "repetition":
           return "draw by repetition";
         case "moves":
-          return "draw by the 50-move rule";
+          return state.ended
+            ? "draw by the 50-move rule"
+            : "draw by the 75-move rule";
         case "material":
           return "dead position, draw";
         case "agreed":
@@ -199,7 +189,7 @@ const chess: TurnGame<State> = {
   },
   describe: (payload) => describeOrder(decodeOrder(payload)),
   render,
-  result: (state, role) => verdict(outcome(state)!, sideOf(role)),
+  result: (state, role) => verdict(state, sideOf(role)),
   prompt: (state) =>
     inCheck(state)
       ? "check, your move"
@@ -229,6 +219,8 @@ function tap(square: number) {
     pending = { from: target.from, to: target.to, state };
   } else if (target) {
     send({ kind: "move", move: target, offer: offerEl.checked });
+    selected = undefined;
+  } else if (square === selected) {
     selected = undefined;
   } else {
     selected = movesFrom(state, square).length > 0 ? square : undefined;
@@ -261,10 +253,6 @@ promotionEl.onclick = (event) => {
   render(page.state, page.role);
 };
 
-promotionEl.querySelectorAll("button").forEach((button, index) => {
-  button.dataset.kind = PROMOTIONS[index];
-});
-
 drawEl.onclick = () => send({ kind: "draw" });
 
 resignEl.onclick = () => {
@@ -277,6 +265,6 @@ resignEl.onclick = () => {
   resignTimer = setTimeout(disarmResign, 3000);
 };
 
-new MutationObserver(() => {
-  controlsEl.hidden = pingEl.hidden;
-}).observe(pingEl, { attributes: true, attributeFilter: ["hidden"] });
+document.getElementById("start")!.addEventListener("click", () => {
+  controlsEl.hidden = false;
+});

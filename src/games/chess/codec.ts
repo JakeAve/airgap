@@ -4,14 +4,14 @@
 // none applies; findOrder is what decides whether it does.
 
 import { BitReader, BitWriter } from "@/lib/bits/mod.ts";
-import type { Kind, Order } from "./logic.ts";
-import { squareName } from "./logic.ts";
+import type { Order } from "./logic.ts";
+import { PROMOTIONS, squareName } from "./logic.ts";
+
+export { PROMOTIONS } from "./logic.ts";
 
 const KIND_BITS = 2;
 const SQUARE_BITS = 6;
 const PROMOTION_BITS = 2;
-
-export const PROMOTIONS: readonly Kind[] = ["q", "r", "b", "n"];
 
 export function encodeOrder(order: Order): Uint8Array {
   const writer = new BitWriter();

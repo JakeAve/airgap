@@ -53,7 +53,7 @@ const SQUARES = 64;
 const FILES = 8;
 const RANKS = 8;
 const BACK_RANK = "rnbqkbnr";
-const PROMOTIONS: Kind[] = ["q", "r", "b", "n"];
+export const PROMOTIONS: readonly Kind[] = ["q", "r", "b", "n"];
 
 const CASTLE_KING: Record<Side, number> = { white: 1, black: 4 };
 const CASTLE_QUEEN: Record<Side, number> = { white: 2, black: 8 };
@@ -84,7 +84,7 @@ function file(square: number): number {
   return square & 7;
 }
 
-function other(side: Side): Side {
+export function other(side: Side): Side {
   return side === "white" ? "black" : "white";
 }
 
@@ -125,6 +125,7 @@ export function turn(state: State): Side {
   return state.messages % 2 === 0 ? "white" : "black";
 }
 
+/** FIDE 9.2.2: an en passant square only distinguishes positions when the capture is legal. */
 export function positionKey(state: State): string {
   const squares = state.board.map((piece) =>
     piece === null
@@ -134,8 +135,22 @@ export function positionKey(state: State): string {
       : piece.kind
   ).join("");
   return `${squares} ${turn(state)[0]} ${state.castling} ${
-    state.enPassant ?? "-"
+    enPassantLegal(state) ? state.enPassant : "-"
   }`;
+}
+
+function enPassantLegal(state: State): boolean {
+  const { board, enPassant } = state;
+  if (enPassant === null) return false;
+  const side = turn(state);
+  const capturer = [-1, 1].some((df) => {
+    const from = step(enPassant, -PAWN_DIR[side], df);
+    return from !== null && holds(board, from, side, ["p"]);
+  });
+  return capturer &&
+    legalMoves(state).some((move) =>
+      move.to === enPassant && holds(board, move.from, side, ["p"])
+    );
 }
 
 function holds(
@@ -193,7 +208,7 @@ function attacked(board: Board, square: number, by: Side): boolean {
     slidesTo(board, square, DIAGONAL, by, ["b", "q"]);
 }
 
-function kingSquare(board: Board, side: Side): number {
+export function kingSquare(board: Board, side: Side): number {
   return board.findIndex((piece) =>
     piece !== null && piece.side === side && piece.kind === "k"
   );
@@ -407,11 +422,16 @@ export function findOrder(state: State, order: Order): Order | null {
 export function apply(state: State, order: Order): State {
   const messages = state.messages + 1;
   if (order.kind === "draw") {
+    const reason = state.offered
+      ? "agreed"
+      : repetitions(state) >= 3
+      ? "repetition"
+      : "moves";
     return {
       ...state,
       messages,
       offered: false,
-      ended: { kind: "draw", reason: "agreed" },
+      ended: { kind: "draw", reason },
     };
   }
   if (order.kind === "resign") {

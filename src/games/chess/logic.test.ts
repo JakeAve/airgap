@@ -324,3 +324,44 @@ Deno.test("findOrder returns the canonical move and keeps the offer", () => {
     4,
   );
 });
+
+Deno.test("a stale en passant square does not spoil a repetition", () => {
+  const shuffle = [
+    move("g1", "f3"),
+    move("g8", "f6"),
+    move("f3", "g1"),
+    move("f6", "g8"),
+  ];
+  let state = playAll(initialState(), move("e2", "e4"), move("e7", "e5"));
+  assertEquals(state.enPassant, square("e6"));
+  state = playAll(state, ...shuffle);
+  assertEquals(claimable(state), false);
+  state = playAll(state, ...shuffle);
+  assertEquals(claimable(state), true);
+});
+
+Deno.test("a claimed draw records its ground", () => {
+  const fifty = playAll({ ...initialState(), halfmove: 99 }, move("g1", "f3"));
+  assertEquals(
+    outcome(apply(fifty, { kind: "draw" })),
+    { kind: "draw", reason: "moves" },
+  );
+
+  const shuffle = [
+    move("g1", "f3"),
+    move("g8", "f6"),
+    move("f3", "g1"),
+    move("f6", "g8"),
+  ];
+  const threefold = playAll(initialState(), ...shuffle, ...shuffle);
+  assertEquals(
+    outcome(apply(threefold, { kind: "draw" })),
+    { kind: "draw", reason: "repetition" },
+  );
+
+  const offered = playAll(initialState(), offering(move("e2", "e4")));
+  assertEquals(
+    outcome(apply(offered, { kind: "draw" })),
+    { kind: "draw", reason: "agreed" },
+  );
+});
