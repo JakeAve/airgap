@@ -44,7 +44,7 @@ const passesInput = $<HTMLInputElement>("passes");
 const passes = () => Math.max(1, Math.floor(passesInput.valueAsNumber) || 1);
 const code = $<HTMLCanvasElement>("code");
 const camera = $<HTMLVideoElement>("camera");
-const resend = $<HTMLButtonElement>("resend");
+const ping = $<HTMLButtonElement>("ping");
 const qrEncoder = new QrEncoder();
 
 let page: PageLink | undefined;
@@ -53,6 +53,7 @@ let session: number | undefined;
 let previousSession: number | undefined;
 let lastSent: Message | undefined;
 let showing: Message | undefined;
+let codeDismissed = false;
 let sounding: AbortController | undefined;
 let receiving: AbortController | undefined;
 
@@ -160,7 +161,7 @@ function status() {
 }
 
 function drawCode() {
-  if (showing && qrcode.checked) {
+  if (showing && qrcode.checked && !codeDismissed) {
     drawQr(qrEncoder.encode(buildFrames(showing)), code, qrColors);
     code.hidden = false;
   } else {
@@ -176,6 +177,7 @@ function transmit(m: Message) {
   sounding?.abort();
   sounding = undefined;
   showing = m;
+  codeDismissed = false;
   drawCode();
   log(`sent ${describe(m)} over ${channels().join(" + ") || "nothing"}`);
   if (page && chirp.checked) {
@@ -247,7 +249,7 @@ function tap(cell: number) {
     session,
     payload: encodeMove(cell),
   };
-  resend.disabled = false;
+  ping.disabled = false;
   moved(play(board, cell));
   transmit(lastSent);
 }
@@ -295,7 +297,7 @@ $("start").onclick = async () => {
       session ?? "from the first move"
     }`,
   );
-  resend.hidden = false;
+  ping.hidden = false;
   await syncChannels();
 };
 
@@ -324,7 +326,12 @@ document.addEventListener("click", (event) => {
   if (!menu.contains(event.target as Node)) menu.open = false;
 });
 
-resend.onclick = () => {
+code.onclick = () => {
+  codeDismissed = true;
+  drawCode();
+};
+
+ping.onclick = () => {
   if (lastSent) transmit(lastSent);
 };
 
@@ -337,7 +344,7 @@ function newGame(nextRole: "host" | "guest") {
   board = emptyBoard();
   lastSent = undefined;
   showing = undefined;
-  resend.disabled = true;
+  ping.disabled = true;
   log(
     `new game: ${role} playing ${me}, session ${
       session ?? "from the first move"

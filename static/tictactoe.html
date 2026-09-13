@@ -59,21 +59,27 @@
         </div>
       </details>
     </header>
-    <canvas id="code" class="qr vf-code" hidden></canvas>
+    <div class="vf-status vf-top">
+      <span id="dot" class="dot"></span>
+      <span id="status" class="mono">ready</span>
+    </div>
     <div class="vf-middle">
       <button id="start" class="tx">Start</button>
-      <div id="board" class="card board" role="group" aria-label="Board"></div>
-      <button id="resend" hidden disabled>Resend</button>
+      <div id="board" class="card board" role="group" aria-label="Board">
+        <canvas
+          id="code"
+          class="board-code"
+          aria-label="This move as a QR code; tap to see the board"
+          hidden
+        ></canvas>
+      </div>
+      <button id="ping" hidden disabled>Ping</button>
       <div id="again" class="row" hidden>
         <button id="switch" class="tx">Switch letters</button>
         <button id="replay">Replay</button>
       </div>
     </div>
     <footer class="vf-foot">
-      <div class="vf-status">
-        <span id="dot" class="dot"></span>
-        <span id="status" class="mono">ready</span>
-      </div>
       <details>
         <summary class="mono muted">Log</summary>
         <pre id="log" class="log"></pre>

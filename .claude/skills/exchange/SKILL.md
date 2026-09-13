@@ -106,7 +106,8 @@ started. These rules are about how a stall ends short of that.
 Tic-tac-toe (`src/games/ticTacToe/`) has no handshake: the opponent's next move
 is the only confirmation a turn game needs, since player 2 cannot move until
 player 1's move arrives. A move lost in the air is visible to two people sitting
-together, so recovery is a **Resend** button, not timers and retries.
+together, so recovery is a **Ping** button, which sends the last move again, not
+timers and retries.
 
 Roles come from the buttons, not a round: **New game** is X, the host, and moves
 first; **Join** is O, the guest, and waits for it.

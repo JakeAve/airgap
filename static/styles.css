@@ -770,18 +770,21 @@ body.viewfinder.guest {
 
 /* Game boards and channel checkboxes */
 
+/* Room left for the header, status, log, and the buttons under the board. */
 .board {
-  --cell: clamp(48px, 9dvh, 72px);
+  --size: min(100vw - 1.5rem, 100dvh - 20rem, 36rem);
   display: grid;
-  grid-template-columns: repeat(3, var(--cell));
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  width: var(--size);
+  height: var(--size);
   gap: 6px;
   padding: 0.5rem;
 }
 
 .board button {
-  height: var(--cell);
+  height: auto;
   padding: 0;
-  font: 700 1.75rem var(--font-mark);
+  font: 700 min(2.5rem, calc(var(--size) / 7)) var(--font-mark);
   transition: opacity 400ms ease;
 }
 
@@ -831,6 +834,32 @@ body.viewfinder.guest {
   border-color: rgba(var(--mark-rgb), 0.7);
   text-shadow: 0 0 10px rgba(var(--mark-rgb), 0.8);
   animation: win-pop 500ms ease-out 350ms both;
+}
+
+.board-code {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 0 30px rgba(var(--tx-rgb), 0.35);
+  cursor: pointer;
+}
+
+.vf-top {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+  background: rgba(8, 8, 10, 0.9);
+  border-bottom: 1px solid var(--line);
+}
+
+.vf-foot > details:first-child > summary {
+  border-top: 0;
 }
 
 .strike {

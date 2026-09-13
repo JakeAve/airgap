@@ -122,8 +122,8 @@ care which delivered them.
 - The handshake and its hardware lessons live in `.claude/skills/exchange`; read
   it before touching legs, windows, or the exchange screen.
 - Turn games skip the handshake: the opponent's next move is the only
-  confirmation a turn needs, so a lost move gets a Resend button instead of the
-  handshake's windows and retries.
+  confirmation a turn needs, so a lost move gets a Ping button (send it again)
+  instead of the handshake's windows and retries.
 
 ## Wire-protocol facts worth remembering
 
