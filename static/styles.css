@@ -366,6 +366,45 @@ a:hover {
   color: var(--muted);
 }
 
+.game {
+  padding: 0;
+  gap: 0;
+}
+
+.game summary {
+  display: flex;
+  list-style: none;
+  cursor: pointer;
+}
+
+.game summary::-webkit-details-marker {
+  display: none;
+}
+
+.game .icon .x {
+  color: var(--x);
+}
+
+.game .icon .o {
+  color: var(--o);
+}
+
+.game[open] {
+  border-color: var(--line-strong);
+}
+
+.game[open] .chevron {
+  color: var(--fg);
+  transform: rotate(90deg);
+}
+
+.game form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  padding: 0.125rem 1rem 1rem;
+}
+
 /* Facts */
 
 .facts {

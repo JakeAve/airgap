@@ -50,6 +50,10 @@ install still renders. Do not add a fourth face.
 - `.card` a panel with corner ticks. `.card.tx` / `.card.rx` light its top edge.
   `.card.dashed` is the empty state. `.card.link-card` is a whole-card link with
   `.icon`, `.text` (`strong` + `small`) and `.chevron`.
+- `.card.game` is a home-page game: a `<details name="game">` (so one opens at a
+  time) whose `summary` is a link-card row and whose `form` GETs the game page
+  with `role=host` (`button.tx`) or `role=guest` (`button.rx`). Its icon draws
+  both players, `.x` in `--x` and `.o` in `--o`, flat with no glow.
 - `.card-head` a header row; the `h2` inside a card is already a small label.
 - `.label`, `.label.tx`, `.label.rx` small pixel labels; `.rule` puts a line
   after one. `.mark` is the pixel face for a short heading.
