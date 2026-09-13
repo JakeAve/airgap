@@ -25,7 +25,7 @@ standards and structure.
 
 ```bash
 deno task setup        # install git hooks (once)
-deno task dev          # build + serve dist/ on :8000, rebuild on change
+deno task dev          # build + serve dist/ on :8443, rebuild on change
 deno task build        # production build → dist/
 deno task check        # fmt check + lint + type check
 deno task test         # unit tests

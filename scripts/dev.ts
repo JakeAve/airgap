@@ -7,7 +7,7 @@ import { build } from "./build.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const DIST = join(ROOT, "dist");
-const PORT = Number(Deno.env.get("PORT") ?? 8000);
+const PORT = Number(Deno.env.get("PORT") ?? 8443);
 const CERT_DIR = join(ROOT, ".certs");
 
 async function tlsOptions(): Promise<
