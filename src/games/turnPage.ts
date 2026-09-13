@@ -122,6 +122,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
     if (showing && qrcode.checked && !codeDismissed) {
       drawQr(qrEncoder.encode(buildFrames(showing)), code, qrColors);
       code.hidden = false;
+      if (code.scrollIntoView) code.scrollIntoView({ block: "center" });
     } else {
       code.hidden = true;
     }
@@ -241,6 +242,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
     drawCode();
     awaitMove();
     status();
+    game.render(state, role);
   }
 
   $("start").onclick = async () => {
