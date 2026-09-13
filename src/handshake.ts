@@ -137,6 +137,8 @@ function syncDevices() {
  */
 async function start() {
   button("start").hidden = true;
+  button("retry").hidden = true;
+  $("result").hidden = true;
   button("stop").hidden = false;
   const started = performance.now();
   const at = () => ((performance.now() - started) / 1000).toFixed(2);
@@ -290,11 +292,14 @@ async function start() {
     $("outcome").textContent = outcome;
     $("received").textContent = received;
     $("result").hidden = false;
-    button("continue").hidden = false;
+    const complete = outcome.startsWith("complete");
+    button("continue").hidden = !complete;
+    button("retry").hidden = complete;
   }
 }
 
 button("start").onclick = start;
+button("retry").onclick = start;
 button("stop").onclick = () => turning?.abort();
 button("continue").onclick = () => {
   location.href = next;

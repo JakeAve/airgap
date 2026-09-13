@@ -174,13 +174,30 @@ try {
           "failed: no ack to",
         ) &&
         document.querySelector("#camera")?.hasAttribute("hidden") === true &&
-        document.querySelector("#continue")?.hasAttribute("hidden") === false,
+        document.querySelector("#continue")?.hasAttribute("hidden") === true &&
+        document.querySelector("#retry")?.hasAttribute("hidden") === false,
       null,
       { timeout: 60_000 },
     );
-    await page.click("#continue");
-    await page.waitForURL(/diag\.html$/, { timeout: 10_000 });
-    console.log("handshake: gave up after its retries, devices off, continued");
+    console.log("handshake: gave up after its retries, devices off");
+    // Retry runs it again from the same page; Stop lands on Retry too.
+    await page.click("#retry");
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#stop")?.hasAttribute("hidden") === false &&
+        document.querySelector("#retry")?.hasAttribute("hidden") === true,
+      null,
+      { timeout: 10_000 },
+    );
+    await page.click("#stop");
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#outcome")?.textContent === "stopped" &&
+        document.querySelector("#retry")?.hasAttribute("hidden") === false,
+      null,
+      { timeout: 10_000 },
+    );
+    console.log("handshake: retried, stopped, offered retry again");
   } catch {
     failures.push(`handshake: ${await page.textContent("#status")}`);
   }
