@@ -50,7 +50,7 @@ let page: PageLink | undefined;
 let turning: AbortController | undefined;
 let selfSuppressed = 0;
 
-$("role").textContent = `${role} · ${channel}`;
+$("role").textContent = role;
 
 function textMessage(type: number): Message {
   return { type, session: SESSION_ID, seq: 0, payload: encodeText(text) };
@@ -316,7 +316,4 @@ button("flip").onclick = async () => {
     syncDevices();
   }
 };
-status(
-  `ready · ${text} · ${channel}${bySound ? ` · ${protocol}` : ""}`,
-  "",
-);
+status(`ready · ${text}`, "");
