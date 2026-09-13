@@ -30,9 +30,6 @@
           </svg>
         </summary>
         <div id="settings" class="card vf-settings">
-          <span class="label">Rules</span>
-          <label class="check"><input id="mustjump" type="checkbox" checked />
-        must jump</label>
           <span class="label">Send moves by</span>
           <label class="check"><input id="chirp" type="checkbox" checked />
         chirp</label>
@@ -67,7 +64,12 @@
       <span id="status" class="mono">ready</span>
     </div>
     <div class="vf-middle">
-      <button id="start" class="tx">Start</button>
+      <div class="row">
+        <button id="start" class="tx">Start</button>
+        <label id="rules" class="check"><input id="mustjump" type="checkbox"
+            checked />
+          must jump</label>
+      </div>
       <div id="board" class="card board checkers" role="group"
         aria-label="Board">
         <canvas

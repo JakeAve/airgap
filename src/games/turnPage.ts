@@ -34,6 +34,8 @@ export interface TurnPage<S> {
   canMove(): boolean;
   /** The local player's move: applies it via game.play, renders, and transmits. No-op unless canMove(). */
   move(payload: Uint8Array): void;
+  /** A fresh game in the same role, as Replay does. */
+  restart(): void;
 }
 
 const SETTINGS_KEY = "airgap.settings";
@@ -330,5 +332,6 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
     },
     canMove,
     move,
+    restart: () => newGame(role),
   };
 }
