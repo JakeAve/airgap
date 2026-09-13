@@ -80,6 +80,9 @@ committing.
   the board, turn order, and the win/draw check
 - `src/games/ticTacToe/ui.ts` + `static/tictactoe.html` — tic-tac-toe's screen,
   built on the exchange screen's viewfinder layout
+- `src/games/spaceships/` + `static/spaceships.html` — battleship: fleet
+  placement, two 10×10 sectors and the end-of-game reveal, on the same
+  viewfinder layout
 - `scripts/` — Deno scripts (`build.ts`, `dev.ts` with optional HTTPS from
   `.certs/`, `e2e/` Playwright run against fake devices)
 - `types/` — hand-written declarations for untyped npm packages

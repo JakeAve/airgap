@@ -130,6 +130,23 @@ new game has a fresh host session, and a guest ignores the previous game's
 session, because the last game's final move can still be chirping and would
 otherwise pass for move 0.
 
+Spaceships (`src/games/spaceships/`) is the second turn game on that shape. One
+SHOT per turn carries the result of the opponent's previous shot _and_ my target
+cell, so the next shot is still the only ack and the opponent learns hit or miss
+when I fire, not when it lands. The result on the wire names the ship only on a
+sunk.
+
+REVEAL is the fleet in five bytes — bow cell, `0x80` set when vertical, ships in
+a fixed order — three frames rather than one. The loser reveals instead of
+shooting and that ends the game; the winner answers with its own reveal, which
+is the loser's ack. The winner's reveal is then the unconfirmed last message,
+this page's TIME_WAIT: after winning, the page keeps listening at the count the
+loser's reveal carried, two back from its own, and re-sends its reveal each time
+a Ping brings that reveal round again.
+
+`seq` is the message count mod 4 on both sides, the same parity trick that makes
+a phone's own echo unawaited, and both message types pass through one `accepts`.
+
 ## The exchange screen
 
 `handshake.html` (`src/handshake.ts`) is the screen games will use, chosen from

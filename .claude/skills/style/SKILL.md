@@ -123,3 +123,19 @@ teal, read from `--x`/`--o`, which are set on `:root` before `body.host` and
 `.strike` line and the three `.win` cells, in the winner's colour, while the
 rest of the board dims. A draw dims the board in a wave. All of it stops under
 `prefers-reduced-motion`.
+
+A two-player board reads `--me`/`--them`, not the accents and not `--x`/`--o`
+directly: both pairs are derived from `--x`/`--o` on `:root` and swapped under
+`body.guest`, so one rule set draws either side's colours on either phone.
+
+Spaceships' sectors are `.sector` CSS grids with the ships drawn as one inline
+`.hull` SVG per grid, laid over the cells with a 10×10 viewBox so a ship's
+coordinates are cell coordinates and one drawing serves placement, play and the
+reveal. Cells are buttons on the big sector and spans on the small one, because
+the small card is itself a button. Damage on `.hull .hit` is the eighth place
+glow is allowed and a selected cell the ninth. `.sector.enemy` flips the hull
+and hit colours, so the same markup shows a revealed enemy fleet.
+
+The big sector's cells come out around 34px on a phone, under the 44px rule;
+selecting a cell and then pressing Fire is the mitigation, untested on a real
+phone.
