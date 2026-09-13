@@ -146,3 +146,15 @@ built by the page from `SHIPS`, so the markup carries an empty `#chips`.
 The big sector's cells come out around 34px on a phone, under the 44px rule;
 selecting a cell and then pressing Fire is the mitigation, untested on a real
 phone.
+
+Swarm's board is one inline SVG inside `.board.hive`: every hex is a
+`<g class="hex">` holding a flat-top `<path>` and a `.mono` mark, translated to
+its axial position in units of hex radius, and the viewBox is refit on each
+render to the hive plus one ring of empty neighbours. `.hex.me` / `.hex.them`
+bind `--mark` to `--me` / `--them` so the tint and stroke rules read one token;
+`.from`, `.to` (a `.dot` on an empty hex, a dashed stroke on a climb), `.pick`
+(a neighbour a Crane can lift) and `.win` (the surrounded Motherboard, the glow
+via `drop-shadow`) are the only states. The trays under the card are plain
+outlined buttons in `--me` for your pieces and a mono line of counts for theirs.
+Hexes come out well under 44px on a phone once the hive is wide; the mitigation
+planned is pan and zoom.

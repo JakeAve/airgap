@@ -31,6 +31,15 @@ const GAMES = [
       <path class="o" d="M8.5 15l-3 2v3l3-1.5M15.5 15l3 2v3l-3-1.5M10.5 18h3v3l-1.5 1-1.5-1z"></path>
     </svg>`,
   },
+  {
+    name: "Swarm",
+    page: "./swarm.html",
+    icon:
+      `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path class="x" d="M21 12l-4.5 7.8h-9L3 12l4.5-7.8h9z"></path>
+      <circle class="o" cx="12" cy="12" r="2" fill="currentColor" stroke="none"></circle>
+    </svg>`,
+  },
 ];
 
 function gameCard(game: typeof GAMES[number]) {
