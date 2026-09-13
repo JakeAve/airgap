@@ -19,6 +19,8 @@ const APP_SHELL = [
   "./handshake.js",
   "./tictactoe.html",
   "./tictactoe.js",
+  "./spaceships.html",
+  "./spaceships.js",
   "./codec-worker.js",
   "./capture-worklet.js",
   "./styles.css",
