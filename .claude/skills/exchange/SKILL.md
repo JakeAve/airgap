@@ -104,19 +104,28 @@ started. These rules are about how a stall ends short of that.
 
 ## Turn games
 
-Tic-tac-toe (`src/games/ticTacToe/`) has no handshake: the opponent's next move
-is the only confirmation a turn game needs, since player 2 cannot move until
-player 1's move arrives. A move lost in the air is visible to two people sitting
-together, so recovery is a **Ping** button, which sends the last move again, not
-timers and retries.
+Tic-tac-toe (`src/games/ticTacToe/`) and checkers (`src/games/checkers/`) both
+have no handshake: the opponent's next move is the only confirmation a turn game
+needs, since player 2 cannot move until player 1's move arrives. A move lost in
+the air is visible to two people sitting together, so recovery is a **Ping**
+button, which sends the last move again, not timers and retries. Both games
+mount the same page, `src/games/turnPage.ts`: it owns the settings menu, log,
+transmit/receive loop, and the Replay/Switch/Ping buttons, and takes a
+`TurnGame<S>` — initial state, whose turn it is, applying a decoded payload,
+rendering, and the game-over text — so a game only supplies rules and a board.
 
-Roles come from the buttons, not a round: **New game** is X, the host, and moves
-first; **Join** is O, the guest, and waits for it.
+Roles come from the buttons, not a round: **New game** is the host and moves
+first; **Join** is the guest and waits for it. In tic-tac-toe the host is X and
+the guest O; in checkers the host is dark and the guest light.
 
 One frame per move: `type` 0, `seq` = move number mod 4, `session` chosen by the
-host and adopted by the guest from the first move it sees, payload one byte (the
-cell, 0–8). A phone's own moves carry its own parity, so its own echo is never
-the awaited `moveCount % 4` and needs no role bit to reject.
+host and adopted by the guest from the first move it sees. A phone's own moves
+carry its own parity, so its own echo is never the awaited `moveCount % 4` and
+needs no role bit to reject. Tic-tac-toe's payload is one byte, the cell (0–8).
+Checkers packs a path of squares as hop count (4 bits) | jump bit (1 bit) | from
+square (5 bits) | 2 bits per hop direction, so a single step or short jump still
+fits in one frame; the jump bit is per move, not per hop, because a multi-jump's
+hops are always the same distance (see `src/games/checkers/codec.ts`).
 
 Sound plays each move for `passes` passes (default 1); QR shows the move's code
 until the opponent's move arrives. The gear menu picks chirp (on by default),
@@ -124,11 +133,11 @@ qrcode (off), the sound protocol (default ultrasound fastest) and passes, saved
 in localStorage under `airgap.settings`; channels can change mid-game. The
 decoder hears every protocol, so the two phones need not match.
 
-When a game ends, **Replay** and **Switch letters** start a new game locally,
-with no handshake: the players agree out loud and both tap the same one. Every
-new game has a fresh host session, and a guest ignores the previous game's
-session, because the last game's final move can still be chirping and would
-otherwise pass for move 0.
+When a game ends, **Replay** and **Switch letters** (tic-tac-toe) or **Switch
+colours** (checkers) start a new game locally, with no handshake: the players
+agree out loud and both tap the same one. Every new game has a fresh host
+session, and a guest ignores the previous game's session, because the last
+game's final move can still be chirping and would otherwise pass for move 0.
 
 ## The exchange screen
 
