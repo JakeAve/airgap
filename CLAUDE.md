@@ -76,7 +76,10 @@ committing.
     over any transports, one message out
   - `transports/codecWorkerProtocol.ts` — message types for the worker
 - `src/games/<game>/` — `codec.ts`, `logic.ts`, `ui.ts` per game. `diag/` is the
-  diagnostics page's game: free text at five bits a character
+  diagnostics page's game: free text at five bits a character; `ticTacToe/` is
+  the board, turn order, and the win/draw check
+- `src/games/ticTacToe/ui.ts` + `static/tictactoe.html` — tic-tac-toe's screen,
+  built on the exchange screen's viewfinder layout
 - `scripts/` — Deno scripts (`build.ts`, `dev.ts` with optional HTTPS from
   `.certs/`, `e2e/` Playwright run against fake devices)
 - `types/` — hand-written declarations for untyped npm packages
@@ -118,6 +121,9 @@ care which delivered them.
   receive between legs never waits on `getUserMedia`.
 - The handshake and its hardware lessons live in `.claude/skills/exchange`; read
   it before touching legs, windows, or the exchange screen.
+- Turn games skip the handshake: the opponent's next move is the only
+  confirmation a turn needs, so a lost move gets a Resend button instead of the
+  handshake's windows and retries.
 
 ## Wire-protocol facts worth remembering
 

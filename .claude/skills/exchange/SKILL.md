@@ -101,6 +101,25 @@ started. These rules are about how a stall ends short of that.
   stall is visible rather than a spinner, with the QR code already on screen and
   the camera already rolling.
 
+## Turn games
+
+Tic-tac-toe (`src/games/ticTacToe/`) has no handshake: the opponent's next move
+is the only confirmation a turn game needs, since player 2 cannot move until
+player 1's move arrives. A move lost in the air is visible to two people sitting
+together, so recovery is a **Resend** button, not timers and retries.
+
+Roles come from the buttons, not a round: **New game** is X, the host, and moves
+first; **Join** is O, the guest, and waits for it.
+
+One frame per move: `type` 0, `seq` = move number mod 4, `session` chosen by the
+host and adopted by the guest from the first move it sees, payload one byte (the
+cell, 0–8). A phone's own moves carry its own parity, so its own echo is never
+the awaited `moveCount % 4` and needs no role bit to reject.
+
+Sound plays each move for `passes` passes (default 3, a URL parameter); QR shows
+the move's code until the opponent's move arrives. **chirp** and **qrcode**
+checkboxes on the page pick the channels and can change mid-game.
+
 ## The exchange screen
 
 `handshake.html` (`src/handshake.ts`) is the screen games will use, chosen from
