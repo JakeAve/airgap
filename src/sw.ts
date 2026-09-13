@@ -25,6 +25,8 @@ const APP_SHELL = [
   "./chess.js",
   "./spaceships.html",
   "./spaceships.js",
+  "./swarm.html",
+  "./swarm.js",
   "./codec-worker.js",
   "./capture-worklet.js",
   "./styles.css",

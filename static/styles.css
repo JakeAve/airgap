@@ -366,6 +366,45 @@ a:hover {
   color: var(--muted);
 }
 
+.game {
+  padding: 0;
+  gap: 0;
+}
+
+.game summary {
+  display: flex;
+  list-style: none;
+  cursor: pointer;
+}
+
+.game summary::-webkit-details-marker {
+  display: none;
+}
+
+.game .icon .x {
+  color: var(--x);
+}
+
+.game .icon .o {
+  color: var(--o);
+}
+
+.game[open] {
+  border-color: var(--line-strong);
+}
+
+.game[open] .chevron {
+  color: var(--fg);
+  transform: rotate(90deg);
+}
+
+.game form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  padding: 0.125rem 1rem 1rem;
+}
+
 /* Facts */
 
 .facts {
@@ -830,7 +869,8 @@ body.guest {
   animation: mark-in 220ms ease-out;
 }
 
-.board.over button:not(.win) {
+.board.over button:not(.win),
+.board.over .hex:not(.win) {
   opacity: 0.3;
 }
 
@@ -847,7 +887,8 @@ body.guest {
 }
 
 /* A win is the one moment on the board worth a glow. */
-.board button.win {
+.board button.win,
+.board .hex.win {
   border-color: rgba(var(--mark-rgb), 0.7);
   text-shadow: 0 0 10px rgba(var(--mark-rgb), 0.8);
   animation: win-pop 500ms ease-out 350ms both;
@@ -1020,6 +1061,128 @@ body.guest {
   border: 1px solid var(--line-strong);
   border-radius: 2px;
   background: var(--surface-2);
+}
+
+/* Swarm: flat-top hexes in one SVG whose viewBox refits to the hive plus one
+   ring of empty neighbours, so there is always somewhere to place. The card
+   gives up height first when the rules and trays crowd a phone, and the SVG
+   just draws smaller. */
+.board.hive {
+  display: block;
+  height: auto;
+  min-height: 12rem;
+  aspect-ratio: 1;
+}
+
+/* The board, two trays and Ping do not fit above the camera on a phone, so
+   this one page's middle scrolls; safe centring keeps the top reachable. */
+.vf-middle:has(.board.hive) {
+  overflow-y: auto;
+  justify-content: safe center;
+}
+
+.board.hive svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hex {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 400ms ease;
+}
+
+.hex[role="button"] {
+  cursor: pointer;
+}
+
+.hex path {
+  fill: var(--line);
+  stroke: var(--line-strong);
+  stroke-width: 0.06;
+}
+
+.hex.me {
+  --mark: var(--me);
+  --mark-rgb: var(--me-rgb);
+}
+
+.hex.them {
+  --mark: var(--them);
+  --mark-rgb: var(--them-rgb);
+}
+
+.hex.me path,
+.hex.them path {
+  fill: rgba(var(--mark-rgb), 0.25);
+  stroke: var(--mark);
+}
+
+.hex text {
+  font: 500 0.7px var(--font-mono);
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--mark);
+  pointer-events: none;
+}
+
+.hex .count {
+  font-size: 0.4px;
+  fill: var(--muted);
+}
+
+.hex.from path {
+  stroke: var(--muted);
+  stroke-width: 0.12;
+}
+
+.hex .dot {
+  fill: var(--dim);
+}
+
+.hex.pick path,
+.hex.to.me path,
+.hex.to.them path {
+  stroke-dasharray: 0.16 0.1;
+  stroke-width: 0.1;
+}
+
+.hex.win path {
+  filter: drop-shadow(0 0 0.2px rgba(var(--mark-rgb), 0.8));
+}
+
+.tray {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  width: min(100%, 36rem);
+}
+
+.tray button.me {
+  border-color: var(--me);
+  color: var(--me);
+}
+
+.tray button.from {
+  box-shadow: inset 0 0 0 2px var(--muted);
+}
+
+.rules ul {
+  margin: 0;
+  max-height: 30dvh;
+  overflow: auto;
+  padding-left: 1.25rem;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.rules summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .board-code {
@@ -1222,6 +1385,7 @@ button:has(.sector.small) {
 
 @media (prefers-reduced-motion: reduce) {
   .board button,
+  .hex,
   .hull .hit,
   .strike {
     animation: none !important;

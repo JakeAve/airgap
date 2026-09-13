@@ -50,6 +50,10 @@ install still renders. Do not add a fourth face.
 - `.card` a panel with corner ticks. `.card.tx` / `.card.rx` light its top edge.
   `.card.dashed` is the empty state. `.card.link-card` is a whole-card link with
   `.icon`, `.text` (`strong` + `small`) and `.chevron`.
+- `.card.game` is a home-page game: a `<details name="game">` (so one opens at a
+  time) whose `summary` is a link-card row and whose `form` GETs the game page
+  with `role=host` (`button.tx`) or `role=guest` (`button.rx`). Its icon draws
+  both players, `.x` in `--x` and `.o` in `--o`, flat with no glow.
 - `.card-head` a header row; the `h2` inside a card is already a small label.
 - `.label`, `.label.tx`, `.label.rx` small pixel labels; `.rule` puts a line
   after one. `.mark` is the pixel face for a short heading.
@@ -72,12 +76,14 @@ install still renders. Do not add a fourth face.
   `.vf-head` (wordmark, Stop), `.vf-code` (the current leg, 220px, centred),
   `.vf-middle` (fills; Start, the outcome, Continue or Retry, and `.vf-flip`
   pinned to its bottom right), `.vf-foot` (`.vf-status` dot + mono status +
-  elapsed, then a `<details>` holding `.log`). Only the log scrolls. Add game UI
-  into `.vf-middle`, not around it. The exception to the two-accent rule lives
-  here: the page has no role label, and instead `body.host` is all amber and
-  `body.guest` is all teal. `.host` points the `--rx*` tokens at `--tx*` and
-  `.guest` points `--tx*` at `--rx*`, so every class follows. The QR code uses
-  `QR_GUEST_COLORS` for the guest.
+  elapsed, then a `<details>` holding `.log`). Only the log scrolls. Swarm is
+  the exception: its `.vf-middle` scrolls because the board, two trays, and Ping
+  do not fit beside the camera on a phone, and the QR code scrolls itself into
+  view when drawn. Add game UI into `.vf-middle`, not around it. The exception
+  to the two-accent rule lives here: the page has no role label, and instead
+  `body.host` is all amber and `body.guest` is all teal. `.host` points the
+  `--rx*` tokens at `--tx*` and `.guest` points `--tx*` at `--rx*`, so every
+  class follows. The QR code uses `QR_GUEST_COLORS` for the guest.
 - `.stack`, `.row`, `.facts` (`dl` grid), `.mono`, `.muted`.
 - `.grid-floor` the perspective floor. Home page only; it is decoration and a
   second one on a busy page reads as noise.
@@ -150,3 +156,15 @@ light and dark squares are `--surface-2` and `--line`. The king in check wears a
 `--warn` ring, the only `--warn` in the app, because it is a warning and that is
 what the token is for. A selection and the last move stay neutral, like
 checkers' `.from` and `.to`.
+
+Swarm's board is one inline SVG inside `.board.hive`: every hex is a
+`<g class="hex">` holding a flat-top `<path>` and a `.mono` mark, translated to
+its axial position in units of hex radius, and the viewBox is refit on each
+render to the hive plus one ring of empty neighbours. `.hex.me` / `.hex.them`
+bind `--mark` to `--me` / `--them` so the tint and stroke rules read one token;
+`.from`, `.to` (a `.dot` on an empty hex, a dashed stroke on a climb), `.pick`
+(a neighbour a Crane can lift) and `.win` (the surrounded Motherboard, the glow
+via `drop-shadow`) are the only states. The trays under the card are plain
+outlined buttons in `--me` for your pieces and a mono line of counts for theirs.
+Hexes come out well under 44px on a phone once the hive is wide; the mitigation
+planned is pan and zoom.
