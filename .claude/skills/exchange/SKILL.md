@@ -116,9 +116,17 @@ host and adopted by the guest from the first move it sees, payload one byte (the
 cell, 0–8). A phone's own moves carry its own parity, so its own echo is never
 the awaited `moveCount % 4` and needs no role bit to reject.
 
-Sound plays each move for `passes` passes (default 3, a URL parameter); QR shows
-the move's code until the opponent's move arrives. **chirp** and **qrcode**
-checkboxes on the page pick the channels and can change mid-game.
+Sound plays each move for `passes` passes (default 1); QR shows the move's code
+until the opponent's move arrives. The gear menu picks chirp (on by default),
+qrcode (off), the sound protocol (default ultrasound fastest) and passes, saved
+in localStorage under `airgap.settings`; channels can change mid-game. The
+decoder hears every protocol, so the two phones need not match.
+
+When a game ends, **Replay** and **Switch letters** start a new game locally,
+with no handshake: the players agree out loud and both tap the same one. Every
+new game has a fresh host session, and a guest ignores the previous game's
+session, because the last game's final move can still be chirping and would
+otherwise pass for move 0.
 
 ## The exchange screen
 

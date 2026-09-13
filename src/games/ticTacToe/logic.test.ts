@@ -8,6 +8,7 @@ import {
   outcome,
   play,
   turn,
+  winningLine,
 } from "./logic.ts";
 
 Deno.test("turn alternates starting with X", () => {
@@ -48,6 +49,12 @@ Deno.test("outcome detects a row, column, and diagonal win", () => {
 
   const diag = ["X", "O", "O", null, "X", null, null, null, "X"] as const;
   assertEquals(outcome(diag.slice()), "X");
+});
+
+Deno.test("winningLine names the three cells of the win, or null", () => {
+  const anti = [null, "O", "X", "O", "X", null, "X", null, null] as const;
+  assertEquals(winningLine(anti.slice()), [2, 4, 6]);
+  assertEquals(winningLine(play(emptyBoard(), 4)), null);
 });
 
 Deno.test("outcome is a draw on a full board with no winner", () => {
@@ -105,6 +112,12 @@ Deno.test("accepts requires an unknown session's board to still be empty", () =>
     accepts(board, undefined, { type: MOVE, seq: 1, session: 42 }),
     false,
   );
+});
+
+Deno.test("accepts ignores the previous game's session when joining a replay", () => {
+  const leg = { type: MOVE, seq: 0, session: 42 };
+  assertEquals(accepts(emptyBoard(), undefined, leg, 42), false);
+  assertEquals(accepts(emptyBoard(), undefined, leg, 7), true);
 });
 
 Deno.test("accepts rejects a non-move frame type", () => {

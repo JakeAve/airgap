@@ -18,6 +18,7 @@ import {
   outcome,
   play,
   turn,
+  winningLine,
 } from "./logic.ts";
 import { decodeMove, encodeMove } from "./codec.ts";
 
@@ -31,18 +32,16 @@ const log = (line: string) => {
 };
 
 const params = new URLSearchParams(location.search);
-const role = params.get("role") === "guest" ? "guest" : "host";
-const passesParam = Number(params.get("passes"));
-const passes = Number.isInteger(passesParam) && passesParam > 0
-  ? passesParam
-  : 3;
-const protocol = (params.get("protocol") ?? "fastest") as SoundProtocol;
-const me: Mark = role === "host" ? "X" : "O";
-const them: Mark = me === "X" ? "O" : "X";
-const qrColors = role === "guest" ? QR_GUEST_COLORS : QR_COLORS;
+let role: "host" | "guest" = params.get("role") === "guest" ? "guest" : "host";
+let me: Mark = "X";
+let them: Mark = "O";
+let qrColors = QR_COLORS;
 
 const chirp = $<HTMLInputElement>("chirp");
 const qrcode = $<HTMLInputElement>("qrcode");
+const protocol = $<HTMLSelectElement>("protocol");
+const passesInput = $<HTMLInputElement>("passes");
+const passes = () => Math.max(1, Math.floor(passesInput.valueAsNumber) || 1);
 const code = $<HTMLCanvasElement>("code");
 const camera = $<HTMLVideoElement>("camera");
 const resend = $<HTMLButtonElement>("resend");
@@ -50,13 +49,30 @@ const qrEncoder = new QrEncoder();
 
 let page: PageLink | undefined;
 let board: Board = emptyBoard();
-let session = role === "host" ? newSessionId() : undefined;
+let session: number | undefined;
+let previousSession: number | undefined;
 let lastSent: Message | undefined;
 let showing: Message | undefined;
 let sounding: AbortController | undefined;
 let receiving: AbortController | undefined;
 
-document.body.classList.add(role);
+function setRole(next: "host" | "guest") {
+  role = next;
+  me = role === "host" ? "X" : "O";
+  them = me === "X" ? "O" : "X";
+  qrColors = role === "guest" ? QR_GUEST_COLORS : QR_COLORS;
+  document.body.classList.remove("host", "guest");
+  document.body.classList.add(role);
+  params.set("role", role);
+  history.replaceState(null, "", `?${params}`);
+  if (role === "guest") {
+    session = undefined;
+    return;
+  }
+  do session = newSessionId(); while (session === previousSession);
+}
+
+setRole(role);
 
 const cells = Array.from({ length: 9 }, (_, cell) => {
   const el = document.createElement("button");
@@ -65,10 +81,17 @@ const cells = Array.from({ length: 9 }, (_, cell) => {
   return el;
 });
 
+const boardEl = $("board");
+const strike = document.createElement("span");
+strike.className = "strike";
+strike.hidden = true;
+boardEl.append(strike);
+
 function render() {
   cells.forEach((el, cell) => {
     const mark = board[cell];
     el.textContent = mark ?? "";
+    el.className = mark?.toLowerCase() ?? "";
     el.setAttribute(
       "aria-label",
       `row ${Math.floor(cell / 3) + 1} column ${(cell % 3) + 1}, ${
@@ -76,6 +99,34 @@ function render() {
       }`,
     );
   });
+  const result = outcome(board);
+  const line = winningLine(board);
+  boardEl.classList.toggle("over", result !== null);
+  boardEl.classList.toggle("draw", result === "draw");
+  line?.forEach((cell) => cells[cell].classList.add("win"));
+  strike.hidden = !line;
+  if (line) drawStrike(line);
+}
+
+/** Runs from the centre of the first winning cell to the centre of the last. */
+function drawStrike([first, , last]: number[]) {
+  const from = cells[first];
+  const to = cells[last];
+  const origin = boardEl.getBoundingClientRect();
+  const centre = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    return [r.x + r.width / 2 - origin.x, r.y + r.height / 2 - origin.y];
+  };
+  const [x1, y1] = centre(from);
+  const [x2, y2] = centre(to);
+  const pad = from.offsetWidth / 3;
+  const length = Math.hypot(x2 - x1, y2 - y1) + 2 * pad;
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  strike.className = `strike ${board[first]?.toLowerCase()}`;
+  strike.style.width = `${length}px`;
+  strike.style.left = `${x1 - Math.cos(angle) * pad}px`;
+  strike.style.top = `${y1 - Math.sin(angle) * pad}px`;
+  strike.style.rotate = `${angle}rad`;
 }
 
 function channels(): TransportId[] {
@@ -105,6 +156,7 @@ function status() {
   $("status").textContent = text;
   $("status").className = tone ? `mono ${tone}-text` : "mono";
   $("dot").className = tone ? `dot ${tone}` : "dot";
+  $("again").hidden = !page || !result;
 }
 
 function drawCode() {
@@ -129,7 +181,8 @@ function transmit(m: Message) {
   if (page && chirp.checked) {
     const ctl = new AbortController();
     sounding = ctl;
-    page.sound.maxPasses = passes;
+    page.sound.protocol = protocol.value as SoundProtocol;
+    page.sound.maxPasses = passes();
     page.link.send(m, "sound", ctl.signal)
       .catch((err) => log(`chirp failed: ${err}`))
       .finally(() => {
@@ -154,7 +207,7 @@ async function awaitMove() {
     let m: Message;
     try {
       m = await page.link.receive(via, ctl.signal, {
-        accept: (leg) => accepts(board, session, leg),
+        accept: (leg) => accepts(board, session, leg, previousSession),
       });
     } catch (err) {
       if (!ctl.signal.aborted) log(`receive failed: ${err}`);
@@ -231,7 +284,6 @@ $("start").onclick = async () => {
     page = await openLink(code, camera);
     // The two phones face each other screen to screen.
     page.qr.facing = "user";
-    page.sound.protocol = protocol;
   } catch (err) {
     log(`could not start: ${err}`);
     $("start").hidden = false;
@@ -239,7 +291,7 @@ $("start").onclick = async () => {
     return;
   }
   log(
-    `${role} playing ${me} at ${page.sampleRate} Hz, ${protocol}, ${passes} passes, session ${
+    `${role} playing ${me} at ${page.sampleRate} Hz, ${protocol.value}, ${passes()} passes, session ${
       session ?? "from the first move"
     }`,
   );
@@ -247,11 +299,55 @@ $("start").onclick = async () => {
   await syncChannels();
 };
 
-chirp.onchange = syncChannels;
-qrcode.onchange = syncChannels;
+const SETTINGS_KEY = "airgap.settings";
+const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
+chirp.checked = saved.chirp ?? true;
+qrcode.checked = saved.qrcode ?? false;
+protocol.value = saved.protocol ?? protocol.value;
+if (!protocol.value) protocol.selectedIndex = 0;
+passesInput.value = saved.passes ?? passesInput.value;
+
+$("settings").onchange = (event) => {
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      chirp: chirp.checked,
+      qrcode: qrcode.checked,
+      protocol: protocol.value,
+      passes: passes(),
+    }),
+  );
+  if (event.target === chirp || event.target === qrcode) syncChannels();
+};
+const menu = $<HTMLDetailsElement>("menu");
+document.addEventListener("click", (event) => {
+  if (!menu.contains(event.target as Node)) menu.open = false;
+});
+
 resend.onclick = () => {
   if (lastSent) transmit(lastSent);
 };
+
+function newGame(nextRole: "host" | "guest") {
+  receiving?.abort();
+  sounding?.abort();
+  sounding = undefined;
+  previousSession = session;
+  setRole(nextRole);
+  board = emptyBoard();
+  lastSent = undefined;
+  showing = undefined;
+  resend.disabled = true;
+  log(
+    `new game: ${role} playing ${me}, session ${
+      session ?? "from the first move"
+    }`,
+  );
+  moved(board);
+}
+
+$("replay").onclick = () => newGame(role);
+$("switch").onclick = () => newGame(role === "host" ? "guest" : "host");
 
 render();
 status();

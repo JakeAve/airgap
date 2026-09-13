@@ -28,12 +28,15 @@ export function turn(board: Board): Mark {
   return moveCount(board) % 2 === 0 ? "X" : "O";
 }
 
+export function winningLine(board: Board): number[] | null {
+  return WIN_LINES.find(([a, b, c]) =>
+    board[a] && board[a] === board[b] && board[a] === board[c]
+  ) ?? null;
+}
+
 export function outcome(board: Board): Mark | "draw" | null {
-  for (const [a, b, c] of WIN_LINES) {
-    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-      return board[a];
-    }
-  }
+  const line = winningLine(board);
+  if (line) return board[line[0]];
   return moveCount(board) === 9 ? "draw" : null;
 }
 
@@ -51,13 +54,18 @@ export function play(board: Board, cell: number): Board {
   return next;
 }
 
+/**
+ * `previous` is the last game's session: after a replay its final move can
+ * still be in the air, and on an empty board it would pass for move 0.
+ */
 export function accepts(
   board: Board,
   session: number | undefined,
   leg: Leg,
+  previous?: number,
 ): boolean {
   if (leg.type !== MOVE || leg.seq !== moveCount(board) % 4) return false;
   return session === undefined
-    ? moveCount(board) === 0
+    ? moveCount(board) === 0 && leg.session !== previous
     : leg.session === session;
 }

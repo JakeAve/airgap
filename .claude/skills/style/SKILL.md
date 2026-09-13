@@ -116,3 +116,10 @@ Board on a neutral `.card`; the player's own move control in `tx`, the wait for
 the opponent in `rx`; timings and ids in `.mono`; the wordmark links home.
 Buttons stay 44px tall. Prefer the existing classes over inline styles, and add
 to `styles.css` only what more than one screen will use.
+
+Tic-tac-toe marks are the host's and guest's colours on both phones: X amber, O
+teal, read from `--x`/`--o`, which are set on `:root` before `body.host` and
+`body.guest` fold the accents. A win is the seventh place glow is allowed: the
+`.strike` line and the three `.win` cells, in the winner's colour, while the
+rest of the board dims. A draw dims the board in a wave. All of it stops under
+`prefers-reduced-motion`.
