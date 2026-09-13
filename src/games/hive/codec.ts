@@ -1,4 +1,4 @@
-// Wire layout: piece 5 | ref 5 | dir 3 | thrown 1 | spare 2. A destination is
+// Wire layout: piece 5 | ref 5 | dir 3 | thrown 1, padded to 2 bytes. A destination is
 // named relative to a piece already in play, so the 16 bits never have to hold
 // a coordinate. The first move of a game has no reference to point at, so the
 // ref field carries the option set instead.
@@ -9,8 +9,8 @@ import {
   hexOf,
   inPlay,
   key,
-  type Kind,
   kindOf,
+  MARKS,
   type Move,
   neighbour,
   type Options,
@@ -22,7 +22,6 @@ const PIECE_BITS = 5;
 const REF_BITS = 5;
 const DIR_BITS = 3;
 const THROWN_BITS = 1;
-const SPARE_BITS = 2;
 const PAYLOAD_BYTES = 2;
 
 /** dir 6 puts the mover on top of the reference instead of beside it. */
@@ -32,17 +31,6 @@ const PIECE_COUNT = 2 * PIECES_PER_SIDE;
 const FPGA_BIT = 1;
 const PROBE_BIT = 2;
 const CRANE_BIT = 4;
-
-const MARKS: Record<Kind, string> = {
-  motherboard: "MB",
-  clock: "CK",
-  heatsink: "HS",
-  jumper: "JP",
-  packet: "PK",
-  fpga: "FP",
-  probe: "PR",
-  crane: "CR",
-};
 
 function optionBits(options: Options): number {
   return (options.fpga ? FPGA_BIT : 0) | (options.probe ? PROBE_BIT : 0) |
@@ -69,7 +57,6 @@ export function encodeMove(state: State, move: Move): Uint8Array {
     .write(ref, REF_BITS)
     .write(dir, DIR_BITS)
     .write(move.thrown ? 1 : 0, THROWN_BITS)
-    .write(0, SPARE_BITS)
     .bytes();
 }
 

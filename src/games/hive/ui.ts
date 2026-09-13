@@ -11,34 +11,26 @@ import {
   type Hex,
   hexOf,
   initialState,
-  inPlay,
   key,
   type Kind,
   kindOf,
   legalMoves,
+  MARKS,
   type Move,
   neighbour,
   type Options,
   outcome,
-  pieceId,
+  parse,
   type Side,
   sideOf,
   SLOTS,
   type State,
+  surrounded,
+  topOf,
+  tray,
   turn,
 } from "./logic.ts";
 import { decodeMove, describeMove, encodeMove } from "./codec.ts";
-
-const MARKS: Record<Kind, string> = {
-  motherboard: "MB",
-  clock: "CK",
-  heatsink: "HS",
-  jumper: "JP",
-  packet: "PK",
-  fpga: "FP",
-  probe: "PR",
-  crane: "CR",
-};
 
 const NAMES: Record<Kind, string> = {
   motherboard: "Motherboard",
@@ -110,18 +102,13 @@ let pickup: number | null = null;
 /** The state the selection was built on: any other state invalidates it. */
 let selectionState: State | undefined;
 
-const top = (state: State, hex: Hex) => state.stacks.get(key(hex))?.at(-1);
-
-const enabled = (options: Options, kind: Kind) =>
-  kind in options ? options[kind as keyof Options] : true;
-
-function unplaced(state: State, side: Side, kind: Kind): number[] {
-  const placed = inPlay(state, side);
-  return SLOTS.flatMap((k, slot) =>
-    k === kind && !placed.includes(pieceId(side, slot))
-      ? [pieceId(side, slot)]
-      : []
-  );
+function trayByKind(state: State, side: Side): Map<Kind, number[]> {
+  const out = new Map<Kind, number[]>();
+  for (const piece of tray(state, side)) {
+    const kind = kindOf(piece);
+    out.set(kind, [...(out.get(kind) ?? []), piece]);
+  }
+  return out;
 }
 
 /** The hub the selection throws from, when it is a Crane or an FPGA on the board. */
@@ -131,21 +118,18 @@ function hub(state: State): Hex | null {
   return kind === "crane" || kind === "fpga" ? hexOf(state, selected) : null;
 }
 
-function surrounded(state: State, side: Side): string | null {
-  const hex = hexOf(state, pieceId(side, 0));
-  if (hex === null) return null;
-  for (let dir = 0; dir < 6; dir++) {
-    if (!state.stacks.has(key(neighbour(hex, dir)))) return null;
-  }
-  return key(hex);
+/** Pieces the hub can lift this turn: beside it, dropping beside it. */
+function throwable(state: State, hub: Hex): Set<number> {
+  return new Set(
+    legalMoves(state).filter((m) =>
+      m.thrown && adjacent(hub, hexOf(state, m.piece)) && adjacent(hub, m.to)
+    ).map((m) => m.piece),
+  );
 }
 
 function visibleHexes(state: State): Hex[] {
   const seeds = state.stacks.size > 0
-    ? [...state.stacks.keys()].map((k) => {
-      const [q, r] = k.split(",").map(Number);
-      return { q, r };
-    })
+    ? [...state.stacks.keys()].map(parse)
     : [{ q: 0, r: 0 }];
   const found = new Map<string, Hex>();
   for (const hex of seeds) {
@@ -187,7 +171,7 @@ function render(state: State, role: Role) {
     selected = null;
     pickup = null;
   }
-  const live = turn(state) === role;
+  const live = page?.canMove() ?? false;
   const moves = live ? legalMoves(state) : [];
   const from = hub(state);
   const mover = pickup ?? selected;
@@ -198,14 +182,15 @@ function render(state: State, role: Role) {
     ).map((m) => key(m.to)),
   );
   const picks = new Set(
-    pickup !== null || from === null
+    pickup !== null || from === null || !live
       ? []
-      : moves.filter((m) =>
-        m.thrown && adjacent(from, hexOf(state, m.piece)) &&
-        adjacent(from, m.to)
-      ).map((m) => key(hexOf(state, m.piece)!)),
+      : [...throwable(state, from)].map((p) => key(hexOf(state, p)!)),
   );
-  const wins = new Set([surrounded(state, "host"), surrounded(state, "guest")]);
+  const wins = new Set(
+    [surrounded(state, "host"), surrounded(state, "guest")].flatMap((hex) =>
+      hex ? [key(hex)] : []
+    ),
+  );
   const hexes = visibleHexes(state);
   fit(hexes);
   svg.replaceChildren();
@@ -231,12 +216,17 @@ function render(state: State, role: Role) {
       words.push("can be lifted");
     }
     if (wins.has(k)) classes.push("win");
+    const tappable = targets.has(k) || picks.has(k) ||
+      (piece !== undefined &&
+        moves.some((m) => m.piece === piece && !m.thrown));
     const g = document.createElementNS(SVG, "g");
     const { x, y } = centre(hex);
     g.setAttribute("class", classes.join(" "));
     g.setAttribute("transform", `translate(${x} ${y})`);
-    g.setAttribute("role", "button");
-    g.setAttribute("tabindex", "0");
+    if (tappable) {
+      g.setAttribute("role", "button");
+      g.setAttribute("tabindex", "0");
+    }
     g.setAttribute("aria-label", words.join(", "));
     const path = document.createElementNS(SVG, "path");
     path.setAttribute("d", HEX_PATH);
@@ -261,9 +251,10 @@ function render(state: State, role: Role) {
     svg.append(g);
   }
 
+  const mine = trayByKind(state, role);
   trayEl.replaceChildren(...KINDS.flatMap((kind) => {
-    const left = unplaced(state, role, kind);
-    if (left.length === 0 || !enabled(state.options, kind)) return [];
+    const left = mine.get(kind);
+    if (left === undefined) return [];
     const el = document.createElement("button");
     el.textContent = `${MARKS[kind]} ×${left.length}`;
     el.className = selected === left[0] ? "me from" : "me";
@@ -272,12 +263,10 @@ function render(state: State, role: Role) {
     el.onclick = () => trayTap(kind);
     return [el];
   }));
-  const them: Side = role === "host" ? "guest" : "host";
+  const theirs = trayByKind(state, role === "host" ? "guest" : "host");
   theirsEl.textContent = KINDS.flatMap((kind) => {
-    const left = unplaced(state, them, kind);
-    return left.length === 0 || !enabled(state.options, kind)
-      ? []
-      : [`${MARKS[kind]} ${left.length}`];
+    const left = theirs.get(kind);
+    return left === undefined ? [] : [`${MARKS[kind]} ${left.length}`];
   }).join(" · ");
 
   const over = outcome(state) !== null;
@@ -289,7 +278,7 @@ function tap(hex: Hex) {
   if (!page?.canMove()) return;
   const state = page.state;
   selectionState = state;
-  const piece = top(state, hex);
+  const piece = topOf(state, hex);
   const mover = pickup ?? selected;
   if (mover !== null) {
     const move = findMove(state, {
@@ -305,8 +294,7 @@ function tap(hex: Hex) {
   const from = hub(state);
   if (
     pickup === null && piece !== undefined && from !== null &&
-    adjacent(from, hex) &&
-    legalMoves(state).some((m) => m.piece === piece && m.thrown)
+    throwable(state, from).has(piece)
   ) {
     pickup = piece;
   } else {
@@ -323,7 +311,7 @@ function trayTap(kind: Kind) {
   if (!page?.canMove()) return;
   const state = page.state;
   selectionState = state;
-  const piece = unplaced(state, page.role, kind)[0];
+  const piece = trayByKind(state, page.role).get(kind)?.[0];
   pickup = null;
   selected = piece === selected ? null : piece ?? null;
   render(page.state, page.role);
@@ -336,7 +324,8 @@ function send(state: State, move: Move) {
   if (page) render(page.state, page.role);
 }
 
-let described: { payload: Uint8Array; text: string } | undefined;
+const described = new Map<string, string>();
+const payloadKey = (payload: Uint8Array) => Array.from(payload).join(",");
 
 const hive: TurnGame<State> = {
   initial: () => initialState(readOptions()),
@@ -347,17 +336,16 @@ const hive: TurnGame<State> = {
     const decoded = decodeMove(state, payload);
     if (decoded === null) return null;
     const suffix = decoded.options ? `, ${optionsText(decoded.options)}` : "";
-    described = { payload, text: describeMove(state, payload) + suffix };
+    described.set(payloadKey(payload), describeMove(state, payload) + suffix);
     const base = decoded.options ? initialState(decoded.options) : state;
     const move = findMove(base, decoded.move);
-    return move ? apply(base, move) : null;
+    if (move === null) return null;
+    if (decoded.options) {
+      for (const k of OPTION_KEYS) optionInputs[k].checked = decoded.options[k];
+    }
+    return apply(base, move);
   },
-  describe: (payload) =>
-    described?.payload === payload
-      ? described.text
-      : page
-      ? describeMove(page.state, payload)
-      : "unknown",
+  describe: (payload) => described.get(payloadKey(payload)) ?? "unknown",
   render,
   result(state, role) {
     const winner = outcome(state);

@@ -29,6 +29,17 @@ export const SLOTS: readonly Kind[] = [
 
 export const PIECES_PER_SIDE = 14;
 
+export const MARKS: Record<Kind, string> = {
+  motherboard: "MB",
+  clock: "CK",
+  heatsink: "HS",
+  jumper: "JP",
+  packet: "PK",
+  fpga: "FP",
+  probe: "PR",
+  crane: "CR",
+};
+
 export function pieceId(side: Side, slot: number): number {
   return (side === "host" ? 0 : PIECES_PER_SIDE) + slot;
 }
@@ -54,7 +65,7 @@ export function key(hex: Hex): string {
   return `${hex.q},${hex.r}`;
 }
 
-function parse(key: string): Hex {
+export function parse(key: string): Hex {
   const [q, r] = key.split(",").map(Number);
   return { q, r };
 }
@@ -112,7 +123,7 @@ function stackAt(state: State, hex: Hex): number[] {
   return state.stacks.get(key(hex)) ?? [];
 }
 
-function topOf(state: State, hex: Hex): number | undefined {
+export function topOf(state: State, hex: Hex): number | undefined {
   return stackAt(state, hex).at(-1);
 }
 
@@ -135,11 +146,11 @@ export function turn(state: State): Side {
   return state.toMove;
 }
 
-function enabled(options: Options, kind: Kind): boolean {
+export function enabled(options: Options, kind: Kind): boolean {
   return kind in options ? options[kind as keyof Options] : true;
 }
 
-function tray(state: State, side: Side): number[] {
+export function tray(state: State, side: Side): number[] {
   const placed = inPlay(state, side);
   return SLOTS.flatMap((kind, slot) => {
     const piece = pieceId(side, slot);
@@ -387,8 +398,9 @@ function movesFor(state: State, side: Side): Move[] {
   const mine = inPlay(state, side);
   const motherboardDown = mine.some((p) => kindOf(p) === "motherboard");
   const turnNumber = mine.length + 1;
+  const unplaced = tray(state, side);
   for (const to of placements(state, side)) {
-    for (const piece of tray(state, side)) {
+    for (const piece of unplaced) {
       const motherboard = kindOf(piece) === "motherboard";
       if (!motherboardDown && turnNumber === 1 && motherboard) continue;
       if (!motherboardDown && turnNumber >= 4 && !motherboard) continue;
@@ -415,18 +427,27 @@ function movesFor(state: State, side: Side): Move[] {
   return [...out, ...thrown.values()];
 }
 
-function surrounded(state: State, side: Side): boolean {
+/** The Motherboard's hex when every neighbour is occupied. */
+export function surrounded(state: State, side: Side): Hex | null {
   const hex = hexOf(state, pieceId(side, 0));
-  if (hex === null) return false;
+  if (hex === null) return null;
   for (let dir = 0; dir < 6; dir++) {
-    if (!state.stacks.has(key(neighbour(hex, dir)))) return false;
+    if (!state.stacks.has(key(neighbour(hex, dir)))) return null;
   }
-  return true;
+  return hex;
 }
 
+const legalMemo = new WeakMap<State, Move[]>();
+
 export function legalMoves(state: State): Move[] {
-  if (surrounded(state, "host") || surrounded(state, "guest")) return [];
-  return movesFor(state, state.toMove);
+  let moves = legalMemo.get(state);
+  if (moves === undefined) {
+    moves = surrounded(state, "host") || surrounded(state, "guest")
+      ? []
+      : movesFor(state, state.toMove);
+    legalMemo.set(state, moves);
+  }
+  return moves;
 }
 
 export function findMove(state: State, move: Move): Move | null {
@@ -452,7 +473,9 @@ export function apply(state: State, move: Move): State {
     toMove: other(state.toMove),
     last: { piece: move.piece, thrown: move.thrown },
   };
-  return legalMoves(next).length > 0 ? next : { ...next, toMove: state.toMove };
+  return outcome(next) === null && legalMoves(next).length === 0
+    ? { ...next, toMove: state.toMove }
+    : next;
 }
 
 /**

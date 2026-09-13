@@ -234,6 +234,20 @@ Deno.test("a surrounded Motherboard loses; both at once is a draw", () => {
   assertEquals(outcome(initialState(OFF)), null);
 });
 
+Deno.test("the winning move leaves the turn with the loser", () => {
+  const state = position([
+    [g(MB), at(0, 0)],
+    ...ring(at(0, 0), [h(MB), h(CK), h(HS), g(CK), g(HS)]),
+    [h(JP), at(2, -1)],
+  ]);
+  const won = apply(
+    state,
+    findMove(state, move(h(JP), neighbour(at(0, 0), 5)))!,
+  );
+  assertEquals(outcome(won), "host");
+  assertEquals(turn(won), "guest");
+});
+
 Deno.test("a locked side's turn passes back to the mover", () => {
   const state = position([
     [h(HS), at(-1, 0)],
