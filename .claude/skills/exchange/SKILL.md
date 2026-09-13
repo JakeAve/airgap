@@ -41,7 +41,8 @@ tail and the room — and 50 ms is enough on real phones. It stays a knob.
 decode to nobody. Headless reacquisition fell from 1.71 s to 0.68 s when this
 changed. `QrTransport.watch()` is the same idea for the camera: a scan with the
 camera already rolling decodes in 0.03 s against 0.22 s cold. `flip()` swaps
-front and rear by reopening, so it belongs between legs, not inside one.
+front and rear by reopening, so it belongs between legs, not inside one. The one
+exception is an ultrasound send on iOS, below.
 
 **The leg is the state; the channel is only delivery.** Every outgoing leg is
 drawn as a QR code for as long as it is current and, over sound, played on its
@@ -179,6 +180,12 @@ a page that captured within the last minute (ten with a user gesture; a reload
 clears it). This contradicts the rolling-mic rule above, which is why it is
 ultrasound only: fine for a turn game, too slow for the handshake's ack.
 
+On an iPhone 17 ultrasound is silent to the ear, while a laptop or an iPhone 8
+playing the same samples at the same volume is faintly audible. That noise is
+older speakers distorting and clicking between tones, not the data, so silence
+is not a weak signal. Check level with a spectrum analyzer or by range, not by
+ear.
+
 ## Trying it
 
 `deno task dev` serves HTTPS from `.certs/` (see README for mkcert). Open
@@ -190,3 +197,21 @@ our current leg as a code on top, one status line, the log folded away.
 `deno task e2e` covers the parts fake devices can reach: that the worker still
 decodes a peer while encoding for our own speaker, and that a guest answers a
 call. Acoustic self-hearing needs real hardware.
+
+On a phone:
+
+- The service worker serves JS cache-first, so the first load after a rebuild
+  runs the old bundle. Reload twice before trusting a result.
+- Run one dev server. Two in this folder rebuild into the same `dist/` at once
+  and can delete a page's bundle.
+- When sound misbehaves, read the page log first.
+  `mic open at … Hz,
+  echoCancellation …: hardware … Hz, audioSession …` and
+  `mic closed for
+  ultrasound, context …` show the capture settings, the
+  hardware rate (from a probe AudioContext), the session type, and whether a
+  resume was blocked.
+- Split a failure by removing one thing: play from `diag.html` with the mic
+  never turned on, then turn it on and off by hand, then with it rolling. That
+  is how the stuck output unit was found, after the rate and the session had
+  already been ruled out by the log.
