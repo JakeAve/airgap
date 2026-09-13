@@ -2,7 +2,7 @@ import { assert, assertEquals, assertThrows } from "@std/assert";
 import encodeQR from "qr";
 import { QrEncoder } from "./qrEncoder.ts";
 import { QrDecoder } from "./qrDecoder.ts";
-import { rasterize } from "./rasterize.ts";
+import { QR_GUEST_COLORS, rasterize } from "./rasterize.ts";
 import { bytesToText, textToBytes } from "./bytesAsText.ts";
 import { buildFrames, Reassembler } from "@/lib/frames/frames.ts";
 import {
@@ -62,6 +62,10 @@ Deno.test("the code decodes in the site's colours and in plain black on white", 
   const frames = buildFrames(message(4));
   const matrix = new QrEncoder().encode(frames);
   assertEquals(new QrDecoder().push(rasterize(matrix, 4, 4)), frames);
+  assertEquals(
+    new QrDecoder().push(rasterize(matrix, 4, 4, QR_GUEST_COLORS)),
+    frames,
+  );
   const plain = { module: "#000000", background: "#ffffff" };
   assertEquals(new QrDecoder().push(rasterize(matrix, 4, 4, plain)), frames);
 });

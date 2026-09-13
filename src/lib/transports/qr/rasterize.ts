@@ -8,6 +8,9 @@ import type { RgbaImage } from "./qrDecoder.ts";
  */
 export const QR_COLORS = { module: "#ff9f00", background: "#0a0a0b" };
 
+/** The site's receive teal, the guest's colour on the exchange screen. */
+export const QR_GUEST_COLORS = { ...QR_COLORS, module: "#34d5c4" };
+
 function rgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];

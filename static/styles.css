@@ -32,7 +32,7 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 3rem 1rem 2rem;
   background:
     radial-gradient(120% 40% at 50% -10%, rgba(var(--tx-rgb), 0.08), transparent
@@ -581,7 +581,7 @@ button:disabled {
   z-index: 10;
   inset: auto 0 0;
   width: 100%;
-  height: 50vh;
+  height: 50dvh;
   object-fit: cover;
   background: #05050a;
   border-top: 1px solid rgba(var(--rx-rgb), 0.6);
@@ -596,12 +596,12 @@ button:disabled {
   position: fixed;
   z-index: 11;
   right: 1rem;
-  bottom: calc(50vh - 44px - 1rem);
+  bottom: calc(50dvh - 44px - 1rem);
   background: rgba(10, 10, 11, 0.7);
 }
 
 body:has(.camera:not([hidden])) {
-  padding-bottom: 50vh;
+  padding-bottom: 50dvh;
 }
 
 /* The exchange screen: the camera fills the page, the code floats on it. */
@@ -612,6 +612,21 @@ body.viewfinder {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* Each role owns one accent here: the host is all amber, the guest all teal. */
+body.viewfinder.host {
+  --rx: var(--tx);
+  --rx-rgb: var(--tx-rgb);
+  --rx-core: var(--tx-core);
+  --rx-ink: var(--tx-ink);
+}
+
+body.viewfinder.guest {
+  --tx: var(--rx);
+  --tx-rgb: var(--rx-rgb);
+  --tx-core: var(--rx-core);
+  --tx-ink: var(--rx-ink);
 }
 
 .viewfinder .camera {
@@ -652,18 +667,13 @@ body.viewfinder {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   text-shadow:
-    0 0 2px #fff3dc,
+    0 0 2px var(--tx-core),
     0 0 14px rgba(var(--tx-rgb), 0.9),
     0 0 44px rgba(var(--tx-rgb), 0.5);
 }
 
 .vf-head h1 a {
-  color: inherit;
-}
-
-.vf-head h1 .label {
-  vertical-align: 0.5em;
-  margin-left: 0.5rem;
+  color: var(--tx);
 }
 
 .vf-code {
@@ -720,7 +730,7 @@ body.viewfinder {
 }
 
 .vf-foot .log {
-  max-height: 40vh;
+  max-height: 40dvh;
   padding: 0 1rem 1rem;
 }
 

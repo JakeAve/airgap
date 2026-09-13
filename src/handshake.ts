@@ -5,6 +5,7 @@ import { buildFrames, type Leg, type Message } from "@/lib/frames/frames.ts";
 import { decodeText, encodeText } from "@/games/diag/codec.ts";
 import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
 import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
+import { QR_COLORS, QR_GUEST_COLORS } from "@/lib/transports/qr/rasterize.ts";
 import { drawQr } from "@/adapters/screen.ts";
 import {
   newSessionId,
@@ -50,7 +51,8 @@ let page: PageLink | undefined;
 let turning: AbortController | undefined;
 let selfSuppressed = 0;
 
-$("role").textContent = role;
+document.body.classList.add(role);
+const qrColors = role === "guest" ? QR_GUEST_COLORS : QR_COLORS;
 
 function textMessage(type: number): Message {
   return { type, session: SESSION_ID, seq: 0, payload: encodeText(text) };
@@ -150,10 +152,14 @@ async function start() {
   let received = "";
   try {
     status("opening devices");
-    page ??= await openLink(
-      $<HTMLCanvasElement>("code"),
-      $<HTMLVideoElement>("camera"),
-    );
+    if (!page) {
+      page = await openLink(
+        $<HTMLCanvasElement>("code"),
+        $<HTMLVideoElement>("camera"),
+      );
+      // The two phones face each other screen to screen.
+      page.qr.facing = "user";
+    }
     const { link, sound, qr } = page;
     sound.protocol = protocol;
     if (bySound) await sound.listen();
@@ -181,7 +187,11 @@ async function start() {
     /** Puts the leg on screen and, over sound, plays it once. */
     const transmit = async (m: Message) => {
       if (byQr) {
-        drawQr(qrEncoder.encode(buildFrames(m)), $<HTMLCanvasElement>("code"));
+        drawQr(
+          qrEncoder.encode(buildFrames(m)),
+          $<HTMLCanvasElement>("code"),
+          qrColors,
+        );
         $("code").hidden = false;
       }
       if (bySound) {

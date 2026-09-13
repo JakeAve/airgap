@@ -69,11 +69,15 @@ install still renders. Do not add a fourth face.
 - `.rx-text` / `.tx-text` colour and glow a run of text in an accent.
 - `body.viewfinder` is the exchange screen (`handshake.html`): a flex column the
   height of the viewport that never scrolls, with the camera full-bleed behind.
-  `.vf-head` (wordmark, role label, Stop), `.vf-code` (the current leg, 220px,
-  centred), `.vf-middle` (fills; Start, the outcome, Continue or Retry, and
-  `.vf-flip` pinned to its bottom right), `.vf-foot` (`.vf-status` dot + mono
-  status + elapsed, then a `<details>` holding `.log`). Only the log scrolls.
-  Add game UI into `.vf-middle`, not around it.
+  `.vf-head` (wordmark, Stop), `.vf-code` (the current leg, 220px, centred),
+  `.vf-middle` (fills; Start, the outcome, Continue or Retry, and `.vf-flip`
+  pinned to its bottom right), `.vf-foot` (`.vf-status` dot + mono status +
+  elapsed, then a `<details>` holding `.log`). Only the log scrolls. Add game UI
+  into `.vf-middle`, not around it. The exception to the two-accent rule lives
+  here: the page has no role label, and instead `body.host` is all amber and
+  `body.guest` is all teal. `.host` points the `--rx*` tokens at `--tx*` and
+  `.guest` points `--tx*` at `--rx*`, so every class follows. The QR code uses
+  `QR_GUEST_COLORS` for the guest.
 - `.stack`, `.row`, `.facts` (`dl` grid), `.mono`, `.muted`.
 - `.grid-floor` the perspective floor. Home page only; it is decoration and a
   second one on a busy page reads as noise.

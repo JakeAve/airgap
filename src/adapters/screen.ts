@@ -5,16 +5,20 @@ import { aborted } from "@/lib/transport.ts";
 const QUIET_MODULES = 4;
 const MODULE_PX = 8;
 
-export function drawQr(matrix: QrMatrix, canvas: HTMLCanvasElement): void {
+export function drawQr(
+  matrix: QrMatrix,
+  canvas: HTMLCanvasElement,
+  colors = QR_COLORS,
+): void {
   const modules = matrix.length;
   const size = (modules + QUIET_MODULES * 2) * MODULE_PX;
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas 2d context unavailable");
-  ctx.fillStyle = QR_COLORS.background;
+  ctx.fillStyle = colors.background;
   ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = QR_COLORS.module;
+  ctx.fillStyle = colors.module;
   for (let y = 0; y < modules; y++) {
     for (let x = 0; x < modules; x++) {
       if (!matrix[y][x]) continue;
