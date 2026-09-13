@@ -793,8 +793,25 @@ body.viewfinder.guest {
 :root {
   --x: var(--tx);
   --x-rgb: var(--tx-rgb);
+  --x-core: var(--tx-core);
   --o: var(--rx);
   --o-rgb: var(--rx-rgb);
+  --o-core: var(--rx-core);
+  --me: var(--x);
+  --me-rgb: var(--x-rgb);
+  --me-core: var(--x-core);
+  --them: var(--o);
+  --them-rgb: var(--o-rgb);
+  --them-core: var(--o-core);
+}
+
+body.guest {
+  --me: var(--o);
+  --me-rgb: var(--o-rgb);
+  --me-core: var(--o-core);
+  --them: var(--x);
+  --them-rgb: var(--x-rgb);
+  --them-core: var(--x-core);
 }
 
 .board .x {
@@ -846,6 +863,120 @@ body.viewfinder.guest {
   border: 1px solid var(--line-strong);
   box-shadow: 0 0 30px rgba(var(--tx-rgb), 0.35);
   cursor: pointer;
+}
+
+/* Spaceships: two 10x10 sectors, the big one showing whichever side you asked
+   for. Cells are square, so the grid needs no height of its own. */
+.sector {
+  --size: min(100vw - 2rem, 100dvh - 24rem, 36rem);
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  width: var(--size);
+  gap: 2px;
+  padding: 0.5rem;
+}
+
+/* Whatever the JS makes a cell from: the label, hull and code are not cells. */
+.sector > :not(.sector-label, .hull, canvas) {
+  min-height: 0;
+  padding: 0;
+  aspect-ratio: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+}
+
+.sector-label {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.sector-label .mono {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.sector.small {
+  --size: 120px;
+  gap: 1px;
+}
+
+button:has(.sector.small) {
+  padding: 0;
+}
+
+.sector > .hit {
+  background: var(--me);
+  border-color: var(--me-core);
+}
+
+.sector > .miss {
+  background: radial-gradient(circle, var(--dim) 0 3px, transparent 3px);
+}
+
+.sector.small > .miss {
+  background: radial-gradient(circle, var(--dim) 0 1.5px, transparent 1.5px);
+}
+
+.sector > .sel {
+  outline: 2px solid var(--me);
+  outline-offset: -2px;
+  box-shadow: 0 0 12px rgba(var(--me-rgb), 0.45);
+}
+
+/* Sits over the cells only, so the label row is outside its box. */
+.hull {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  aspect-ratio: 1;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--me);
+}
+
+.hull .hit {
+  stroke: var(--them);
+  filter: drop-shadow(0 0 6px rgba(var(--them-rgb), 0.9));
+  animation: damage 500ms ease-out both;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.chip {
+  gap: 0.375rem;
+  padding: 0 0.75rem;
+  font-size: 12px;
+}
+
+.chip .mono {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.chip.placed {
+  opacity: 0.45;
+}
+
+.chip.picked {
+  border-color: var(--me);
+  color: var(--me);
+}
+
+@keyframes damage {
+  from {
+    opacity: 0.15;
+  }
 }
 
 .vf-top {
@@ -907,6 +1038,7 @@ body.viewfinder.guest {
 
 @media (prefers-reduced-motion: reduce) {
   .board button,
+  .hull .hit,
   .strike {
     animation: none !important;
     transition: none;
