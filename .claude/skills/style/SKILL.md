@@ -150,10 +150,14 @@ selecting a cell and then pressing Fire is the mitigation, untested on a real
 phone.
 
 Swarm's board is one inline SVG inside `.board.hive`: every hex is a
-`<g class="hex">` holding a flat-top `<path>` and a `.mono` mark, translated to
+`<g class="hex">` holding a flat-top `<path>` and a `<use>` of the piece's icon
+from the `.sprite` of `<symbol id="icon-<kind>">` in `swarm.html`, translated to
 its axial position in units of hex radius, and the viewBox is refit on each
 render to the hive plus one ring of empty neighbours. `.hex.me` / `.hex.them`
-bind `--mark` to `--me` / `--them` so the tint and stroke rules read one token;
+bind `--mark` (and `-rgb`, `-core`, `-ink`) to `--me` / `--them` so the tint and
+stroke rules read one token. Kinds differ by tone, never by a third hue: the
+`.motherboard` hex is a solid `--mark` tile with an `--mark-ink` icon, `.fpga`,
+`.probe` and `.crane` go pale in `--mark-core`, the rest keep the plain tint;
 `.from`, `.to` (a `.dot` on an empty hex, a dashed stroke on a climb), `.pick`
 (a neighbour a Crane can lift) and `.win` (the surrounded Motherboard, the glow
 via `drop-shadow`) are the only states. The trays under the card are plain
