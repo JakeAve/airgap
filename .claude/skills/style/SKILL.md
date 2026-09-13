@@ -142,3 +142,11 @@ built by the page from `SHIPS`, so the markup carries an empty `#chips`.
 The big sector's cells come out around 34px on a phone, under the 44px rule;
 selecting a cell and then pressing Fire is the mitigation, untested on a real
 phone.
+
+Chess pieces are one inline SVG sprite of six `<symbol>`s in the page, each
+square drawing its piece with a `<use>` filled from `--mark`, white taking `.x`
+and black `.o` so the `--me`/`--them` folding applies unchanged. The board's
+light and dark squares are `--surface-2` and `--line`. The king in check wears a
+`--warn` ring, the only `--warn` in the app, because it is a warning and that is
+what the token is for. A selection and the last move stay neutral, like
+checkers' `.from` and `.to`.

@@ -77,6 +77,37 @@ function render() {
       </a>
     </section>
     <section class="card">
+      <h2>Chess</h2>
+      <a href="./chess.html?role=host" class="link-card tx">
+        <span class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 3l1.8 2.8L17 4l-.6 3.6L20 9l-3 2.2.8 3.6-3.5-1.3L12 17l-2.3-3.5-3.5 1.3.8-3.6L4 9l3.6-1.4L7 4l3.2 1.8z"></path>
+          </svg>
+        </span>
+        <span class="text">
+          <strong>New game</strong>
+          <small>Host — call the first move</small>
+        </span>
+        <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 6l6 6-6 6"></path>
+        </svg>
+      </a>
+      <a href="./chess.html?role=guest" class="link-card rx">
+        <span class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 3l1.8 2.8L17 4l-.6 3.6L20 9l-3 2.2.8 3.6-3.5-1.3L12 17l-2.3-3.5-3.5 1.3.8-3.6L4 9l3.6-1.4L7 4l3.2 1.8z"></path>
+          </svg>
+        </span>
+        <span class="text">
+          <strong>Join</strong>
+          <small>Guest — answer a call</small>
+        </span>
+        <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 6l6 6-6 6"></path>
+        </svg>
+      </a>
+    </section>
+    <section class="card">
       <h2>Spaceships</h2>
       <a href="./spaceships.html?role=host" class="link-card tx">
         <span class="icon">
