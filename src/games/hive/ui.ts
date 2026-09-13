@@ -15,7 +15,6 @@ import {
   type Kind,
   kindOf,
   legalMoves,
-  MARKS,
   type Move,
   neighbour,
   type Options,
@@ -166,6 +165,25 @@ function text(cls: string, content: string, x = 0, y = 0) {
   return el;
 }
 
+function icon(kind: Kind, size: number) {
+  const use = document.createElementNS(SVG, "use");
+  use.setAttribute("href", `#icon-${kind}`);
+  use.setAttribute("class", "icon");
+  use.setAttribute("x", `${-size / 2}`);
+  use.setAttribute("y", `${-size / 2}`);
+  use.setAttribute("width", `${size}`);
+  use.setAttribute("height", `${size}`);
+  return use;
+}
+
+function trayIcon(kind: Kind) {
+  const el = document.createElementNS(SVG, "svg");
+  el.setAttribute("viewBox", "-0.5 -0.5 1 1");
+  el.setAttribute("aria-hidden", "true");
+  el.append(icon(kind, 1));
+  return el;
+}
+
 function render(state: State, role: Role) {
   if (state !== selectionState) {
     selected = null;
@@ -202,7 +220,7 @@ function render(state: State, role: Role) {
     const words: string[] = [];
     if (piece !== undefined) {
       const mine = sideOf(piece) === role;
-      classes.push(mine ? "me" : "them");
+      classes.push(mine ? "me" : "them", kindOf(piece));
       words.push(NAMES[kindOf(piece)], mine ? "yours" : "theirs");
       if (stack.length > 1) words.push(`${stack.length} high`);
     } else words.push("empty");
@@ -231,7 +249,7 @@ function render(state: State, role: Role) {
     const path = document.createElementNS(SVG, "path");
     path.setAttribute("d", HEX_PATH);
     g.append(path);
-    if (piece !== undefined) g.append(text("mono", MARKS[kindOf(piece)]));
+    if (piece !== undefined) g.append(icon(kindOf(piece), 1.05));
     if (stack.length > 1) {
       g.append(text("mono count", `${stack.length}`, 0.45, -0.45));
     }
@@ -256,7 +274,7 @@ function render(state: State, role: Role) {
     const left = mine.get(kind);
     if (left === undefined) return [];
     const el = document.createElement("button");
-    el.textContent = `${MARKS[kind]} ×${left.length}`;
+    el.append(trayIcon(kind), `×${left.length}`);
     el.className = selected === left[0] ? "me from" : "me";
     el.disabled = !live || !moves.some((m) => m.piece === left[0]);
     el.setAttribute("aria-label", `${NAMES[kind]}, ${left.length} left`);
@@ -264,10 +282,14 @@ function render(state: State, role: Role) {
     return [el];
   }));
   const theirs = trayByKind(state, role === "host" ? "guest" : "host");
-  theirsEl.textContent = KINDS.flatMap((kind) => {
+  theirsEl.replaceChildren(...KINDS.flatMap((kind) => {
     const left = theirs.get(kind);
-    return left === undefined ? [] : [`${MARKS[kind]} ${left.length}`];
-  }).join(" · ");
+    if (left === undefined) return [];
+    const el = document.createElement("span");
+    el.append(trayIcon(kind), `${left.length}`);
+    el.setAttribute("aria-label", `${NAMES[kind]}, ${left.length} left`);
+    return [el];
+  }));
 
   const over = outcome(state) !== null;
   boardEl.classList.toggle("over", over);

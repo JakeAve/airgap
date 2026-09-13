@@ -833,24 +833,30 @@ body.viewfinder.guest {
   --x: var(--tx);
   --x-rgb: var(--tx-rgb);
   --x-core: var(--tx-core);
+  --x-ink: var(--tx-ink);
   --o: var(--rx);
   --o-rgb: var(--rx-rgb);
   --o-core: var(--rx-core);
+  --o-ink: var(--rx-ink);
   --me: var(--x);
   --me-rgb: var(--x-rgb);
   --me-core: var(--x-core);
+  --me-ink: var(--x-ink);
   --them: var(--o);
   --them-rgb: var(--o-rgb);
   --them-core: var(--o-core);
+  --them-ink: var(--o-ink);
 }
 
 body.guest {
   --me: var(--o);
   --me-rgb: var(--o-rgb);
   --me-core: var(--o-core);
+  --me-ink: var(--o-ink);
   --them: var(--x);
   --them-rgb: var(--x-rgb);
   --them-core: var(--x-core);
+  --them-ink: var(--x-ink);
 }
 
 .board .x {
@@ -994,17 +1000,60 @@ body.guest {
 .hex.me {
   --mark: var(--me);
   --mark-rgb: var(--me-rgb);
+  --mark-core: var(--me-core);
+  --mark-ink: var(--me-ink);
 }
 
 .hex.them {
   --mark: var(--them);
   --mark-rgb: var(--them-rgb);
+  --mark-core: var(--them-core);
+  --mark-ink: var(--them-ink);
 }
 
 .hex.me path,
 .hex.them path {
   fill: rgba(var(--mark-rgb), 0.25);
   stroke: var(--mark);
+}
+
+/* Tones tell kinds apart without a third hue: the Motherboard is a solid tile,
+   the three expansion pieces go pale, the base pieces keep the plain tint. */
+.hex.motherboard path {
+  fill: var(--mark);
+}
+
+.hex.fpga path,
+.hex.probe path,
+.hex.crane path {
+  fill: rgba(var(--mark-rgb), 0.1);
+  stroke: var(--mark-core);
+}
+
+.hex .icon,
+.tray svg {
+  color: var(--mark, currentColor);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+symbol .solid {
+  fill: currentColor;
+  stroke: none;
+}
+
+.hex.motherboard .icon {
+  color: var(--mark-ink);
+}
+
+.hex.fpga .icon,
+.hex.probe .icon,
+.hex.crane .icon {
+  color: var(--mark-core);
 }
 
 .hex text {
@@ -1048,9 +1097,31 @@ body.guest {
   width: min(100%, 36rem);
 }
 
+.sprite {
+  display: none;
+}
+
 .tray button.me {
+  gap: 0.375rem;
   border-color: var(--me);
   color: var(--me);
+}
+
+.tray svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.tray span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+#theirs svg {
+  width: 14px;
+  height: 14px;
 }
 
 .tray button.from {
