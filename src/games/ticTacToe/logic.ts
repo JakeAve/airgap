@@ -1,7 +1,3 @@
-import type { Leg } from "@/lib/frames/frames.ts";
-
-export const MOVE = 0;
-
 export type Mark = "X" | "O";
 export type Board = (Mark | null)[];
 
@@ -52,20 +48,4 @@ export function play(board: Board, cell: number): Board {
   const next = board.slice();
   next[cell] = turn(board);
   return next;
-}
-
-/**
- * `previous` is the last game's session: after a replay its final move can
- * still be in the air, and on an empty board it would pass for move 0.
- */
-export function accepts(
-  board: Board,
-  session: number | undefined,
-  leg: Leg,
-  previous?: number,
-): boolean {
-  if (leg.type !== MOVE || leg.seq !== moveCount(board) % 4) return false;
-  return session === undefined
-    ? moveCount(board) === 0 && leg.session !== previous
-    : leg.session === session;
 }
