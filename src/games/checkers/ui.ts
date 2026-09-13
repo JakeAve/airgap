@@ -17,6 +17,15 @@ const SIDE_LENGTH = 8;
 const sideOf = (role: Role): Side => role === "host" ? "dark" : "light";
 
 const boardEl = document.getElementById("board") as HTMLElement;
+const mustJump = document.getElementById("mustjump") as HTMLInputElement;
+const RULES_KEY = "airgap.checkers";
+mustJump.checked =
+  JSON.parse(localStorage.getItem(RULES_KEY) ?? "{}").mustJump ?? true;
+mustJump.onchange = () =>
+  localStorage.setItem(
+    RULES_KEY,
+    JSON.stringify({ mustJump: mustJump.checked }),
+  );
 
 /** Each player sees their own back rank at the bottom, so the host's view is the board turned around. */
 function coords(cell: number, role: Role): { row: number; column: number } {
@@ -91,7 +100,7 @@ function render(state: State, role: Role) {
 }
 
 const checkers: TurnGame<State> = {
-  initial: initialState,
+  initial: () => initialState(mustJump.checked),
   moveCount: (state) => state.moves,
   turn: (state) => turn(state) === "dark" ? "host" : "guest",
   over: (state) => outcome(state) !== null,

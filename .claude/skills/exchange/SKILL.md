@@ -142,6 +142,12 @@ agree out loud and both tap the same one. Every new game has a fresh host
 session, and a guest ignores the previous game's session, because the last
 game's final move can still be chirping and would otherwise pass for move 0.
 
+Checkers has one rule setting, **must jump** (on by default, saved under
+`airgap.checkers`). It is read into the state when a game starts, so a toggle
+mid-game only reaches the next game, and the two phones agree on it out loud
+like a replay: nothing checks that they match, and a mismatch shows up as the
+other phone dropping a move as illegal.
+
 ## The exchange screen
 
 `handshake.html` (`src/handshake.ts`) is the screen games will use, chosen from

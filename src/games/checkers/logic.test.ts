@@ -15,6 +15,7 @@ import {
 function position(
   pieces: Record<number, "d" | "dk" | "l" | "lk">,
   moves = 0,
+  mustJump = true,
 ): State {
   const board: Board = new Array(32).fill(null);
   for (const [square, code] of Object.entries(pieces)) {
@@ -23,7 +24,7 @@ function position(
       king: code.length === 2,
     };
   }
-  return { board, moves };
+  return { board, moves, mustJump };
 }
 
 function count(state: State, side: "dark" | "light"): number {
@@ -49,6 +50,13 @@ Deno.test("a step is not offered when a jump exists", () => {
   assertEquals(moves.every((move) => move.captures.length > 0), true);
   assertEquals(findMove(state, [13, 17]), null);
   assertEquals(findMove(state, [12, 21])?.captures, [16]);
+});
+
+Deno.test("a step is offered beside a jump when captures are optional", () => {
+  const state = position({ 12: "d", 13: "d", 16: "l" }, 0, false);
+  assertEquals(findMove(state, [13, 17])?.captures, []);
+  assertEquals(findMove(state, [12, 21])?.captures, [16]);
+  assertEquals(apply(state, findMove(state, [13, 17])!).mustJump, false);
 });
 
 Deno.test("a double jump is one move and the single jump is absent", () => {

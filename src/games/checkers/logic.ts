@@ -10,6 +10,8 @@ export type Board = (Piece | null)[];
 export interface State {
   board: Board;
   moves: number;
+  /** Fixed when the game starts, so a settings change only reaches the next game. */
+  mustJump: boolean;
 }
 
 /**
@@ -41,13 +43,13 @@ function onBoard(square: number): boolean {
   return Number.isInteger(square) && square >= 0 && square < SQUARES;
 }
 
-export function initialState(): State {
+export function initialState(mustJump = true): State {
   const board: Board = new Array(SQUARES).fill(null);
   for (let i = 0; i < MEN; i++) board[i] = { side: "dark", king: false };
   for (let i = SQUARES - MEN; i < SQUARES; i++) {
     board[i] = { side: "light", king: false };
   }
-  return { board, moves: 0 };
+  return { board, moves: 0, mustJump };
 }
 
 export function turn(state: State): Side {
@@ -136,14 +138,14 @@ export function legalMoves(state: State): Move[] {
     const piece = state.board[square];
     if (!piece || piece.side !== side) continue;
     extend(state.board, piece, [square], [], jumps);
-    if (jumps.length > 0) continue;
+    if (state.mustJump && jumps.length > 0) continue;
     for (const dir of dirsFor(piece)) {
       const landing = hop(square, dir, 1);
       if (landing === null || state.board[landing] !== null) continue;
       steps.push({ path: [square, landing], captures: [] });
     }
   }
-  return jumps.length > 0 ? jumps : steps;
+  return state.mustJump && jumps.length > 0 ? jumps : [...jumps, ...steps];
 }
 
 /** The legal move whose path is exactly this one, else null. */
@@ -162,7 +164,7 @@ export function apply(state: State, move: Move): State {
   board[from] = null;
   for (const square of move.captures) board[square] = null;
   board[to] = crowns(piece, to) ? { side: piece.side, king: true } : piece;
-  return { board, moves: state.moves + 1 };
+  return { ...state, board, moves: state.moves + 1 };
 }
 
 /**
