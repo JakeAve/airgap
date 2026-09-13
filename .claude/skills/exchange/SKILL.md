@@ -143,10 +143,11 @@ session, and a guest ignores the previous game's session, because the last
 game's final move can still be chirping and would otherwise pass for move 0.
 
 Checkers has one rule setting, **must jump** (on by default, saved under
-`airgap.checkers`), shown beside Start and again once a game ends, not in the
-gear menu, because both players have to see and agree on it. It is read into the
-state when a game starts; toggling it before the first move restarts the game
-with the new rule, and after that it hides until the game is over. The two
+`airgap.checkers`), shown in a `.card.rules` block above Start and again once a
+game ends, not in the gear menu, because both players have to see and agree on
+it; a game with more rules adds more controls to the same card. It is read into
+the state when a game starts; toggling it before the first move restarts the
+game with the new rule, and after that it hides until the game is over. The two
 phones agree on it out loud like a replay: nothing checks that they match, and a
 mismatch shows up as the other phone dropping a move as illegal.
 
