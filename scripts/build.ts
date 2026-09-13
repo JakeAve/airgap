@@ -32,6 +32,7 @@ const ENTRIES: [entry: string, out: string][] = [
   ["src/sw.ts", "sw.js"],
   ["src/diag.ts", "diag.js"],
   ["src/handshake.ts", "handshake.js"],
+  ["src/games/ticTacToe/ui.ts", "tictactoe.js"],
   ["src/codecWorker.ts", "codec-worker.js"],
   ["src/captureWorklet.ts", "capture-worklet.js"],
 ];

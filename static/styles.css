@@ -767,3 +767,35 @@ body.viewfinder.guest {
   color: #c4c4c6;
   white-space: pre-wrap;
 }
+
+/* Game boards and channel checkboxes */
+
+.board {
+  --cell: clamp(48px, 9dvh, 72px);
+  display: grid;
+  grid-template-columns: repeat(3, var(--cell));
+  gap: 6px;
+  padding: 0.5rem;
+}
+
+.board button {
+  height: var(--cell);
+  padding: 0;
+  font: 700 1.75rem var(--font-mark);
+}
+
+label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--tx);
+}

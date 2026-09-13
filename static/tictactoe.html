@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <title>Airgap tic-tac-toe</title>
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="viewfinder">
+    <video id="camera" class="camera" hidden></video>
+    <header class="vf-head">
+      <h1><a href="./">Airgap</a></h1>
+    </header>
+    <canvas id="code" class="qr vf-code" hidden></canvas>
+    <div class="vf-middle">
+      <button id="start" class="tx">Start</button>
+      <div id="board" class="card board" role="group" aria-label="Board"></div>
+      <div class="row">
+        <label class="check"><input id="chirp" type="checkbox" checked />
+          chirp</label>
+        <label class="check"><input id="qrcode" type="checkbox" checked />
+          qrcode</label>
+        <button id="resend" hidden disabled>Resend</button>
+      </div>
+    </div>
+    <footer class="vf-foot">
+      <div class="vf-status">
+        <span id="dot" class="dot"></span>
+        <span id="status" class="mono">ready</span>
+      </div>
+      <details>
+        <summary class="mono muted">Log</summary>
+        <pre id="log" class="log"></pre>
+      </details>
+    </footer>
+    <script type="module" src="./tictactoe.js"></script>
+  </body>
+</html>
