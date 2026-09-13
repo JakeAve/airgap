@@ -32,7 +32,10 @@ const log = (line: string) => {
 
 const params = new URLSearchParams(location.search);
 const role = params.get("role") === "guest" ? "guest" : "host";
-const passes = Number(params.get("passes") ?? "3");
+const passesParam = Number(params.get("passes"));
+const passes = Number.isInteger(passesParam) && passesParam > 0
+  ? passesParam
+  : 3;
 const protocol = (params.get("protocol") ?? "fastest") as SoundProtocol;
 const me: Mark = role === "host" ? "X" : "O";
 const them: Mark = me === "X" ? "O" : "X";
@@ -96,6 +99,8 @@ function status() {
     ? ["sending", "tx"]
     : turn(board) === me
     ? ["your move", "tx"]
+    : !page.sound.listening && !page.qr.watching
+    ? ["no mic or camera — check the log", ""]
     : [`waiting for ${them}`, "rx"];
   $("status").textContent = text;
   $("status").className = tone ? `mono ${tone}-text` : "mono";

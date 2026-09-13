@@ -17,6 +17,8 @@ const APP_SHELL = [
   "./diag.js",
   "./handshake.html",
   "./handshake.js",
+  "./tictactoe.html",
+  "./tictactoe.js",
   "./codec-worker.js",
   "./capture-worklet.js",
   "./styles.css",
@@ -71,7 +73,8 @@ async function networkFirst(
     if (response.ok) cache.put(request, response.clone());
     return response;
   } catch {
-    const cached = await cache.match(request) ?? await cache.match(fallbackUrl);
+    const cached = await cache.match(request, { ignoreSearch: true }) ??
+      await cache.match(fallbackUrl);
     return cached ?? Response.error();
   }
 }
