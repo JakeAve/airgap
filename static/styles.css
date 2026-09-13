@@ -836,6 +836,57 @@ body.viewfinder.guest {
   animation: win-pop 500ms ease-out 350ms both;
 }
 
+/* Checkers: 64 squares, playable on the dark diagonals only. */
+.board.checkers {
+  grid-template: repeat(8, 1fr) / repeat(8, 1fr);
+  gap: 2px;
+}
+
+.board.checkers button {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: var(--line);
+}
+
+.board.checkers button:disabled {
+  background: transparent;
+}
+
+.board.checkers button.x::before,
+.board.checkers button.o::before {
+  content: "";
+  position: absolute;
+  inset: 13%;
+  border: 2px solid var(--mark);
+  border-radius: 50%;
+  background: rgba(var(--mark-rgb), 0.25);
+}
+
+.board.checkers button.king::after {
+  content: "";
+  position: absolute;
+  inset: 33%;
+  border: 2px solid var(--mark);
+  border-radius: 50%;
+}
+
+.board.checkers button.from {
+  box-shadow: inset 0 0 0 2px rgba(var(--mark-rgb), 0.55);
+}
+
+.board.checkers button.to {
+  box-shadow: inset 0 0 0 2px var(--line-strong);
+}
+
+.board.checkers button.to:not(.x):not(.o)::before {
+  content: "";
+  position: absolute;
+  inset: 35%;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
 .board-code {
   position: absolute;
   z-index: 2;
