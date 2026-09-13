@@ -23,14 +23,14 @@ export interface TurnGame<S> {
   result(state: S, role: Role): string;
   /** Optional status line on the local player's turn in place of "your move". */
   prompt?(state: S, role: Role): string;
-  /** Optional name for a side, e.g. "X", used in the status and the log. */
-  label?(role: Role): string;
+  /** The name of a side, e.g. "X", used in the status and the log. */
+  label(role: Role): string;
 }
 
 export interface TurnPage<S> {
   readonly state: S;
   readonly role: Role;
-  /** True when devices are open, the session is known, and it is the local player's turn. */
+  /** True when devices are open, the session is known, the game is live, and it is the local player's turn. */
   canMove(): boolean;
   /** The local player's move: applies it via game.play, renders, and transmits. No-op unless canMove(). */
   move(payload: Uint8Array): void;
@@ -72,9 +72,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   let sounding: AbortController | undefined;
   let receiving: AbortController | undefined;
 
-  const named = (of: Role) => game.label?.(of) ?? of;
-  const playing = () =>
-    game.label ? `${role} playing ${game.label(role)}` : role;
+  const playing = () => `${role} playing ${game.label(role)}`;
 
   function setRole(next: Role) {
     role = next;
@@ -111,7 +109,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
       ? [game.prompt?.(state, role) ?? "your move", "tx"]
       : !link.sound.listening && !link.qr.watching
       ? ["no mic or camera — check the log", ""]
-      : [`waiting for ${named(role === "host" ? "guest" : "host")}`, "rx"];
+      : [`waiting for ${game.label(role === "host" ? "guest" : "host")}`, "rx"];
     $("status").textContent = text;
     $("status").className = tone ? `mono ${tone}-text` : "mono";
     $("dot").className = tone ? `dot ${tone}` : "dot";
@@ -199,17 +197,18 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   }
 
   function canMove(): boolean {
-    return !!link && session !== undefined && game.turn(state) === role;
+    return !!link && session !== undefined && !game.over(state) &&
+      game.turn(state) === role;
   }
 
   function move(payload: Uint8Array) {
-    if (!canMove()) return;
+    if (session === undefined || !canMove()) return;
     const next = game.play(state, payload);
     if (next === null) return;
     lastSent = {
       type: MOVE,
       seq: game.moveCount(state) % 4,
-      session: session as number,
+      session,
       payload,
     };
     ping.disabled = false;

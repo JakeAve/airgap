@@ -33,6 +33,8 @@ const squareAt = (row: number, column: number) => row * 4 + (column >> 1);
 
 let view: Role = "host";
 let path: number[] = [];
+/** The state the selection was built on: any other state invalidates it. */
+let pathState: State | undefined;
 
 const cells = Array.from({ length: SIDE_LENGTH * SIDE_LENGTH }, (_, cell) => {
   const el = document.createElement("button");
@@ -61,7 +63,7 @@ function nextSquares(state: State): Set<number> {
 
 function render(state: State, role: Role) {
   view = role;
-  if (path.length > 0 && starts(state, path).length === 0) path = [];
+  if (state !== pathState) path = [];
   const targets = path.length > 0 ? nextSquares(state) : new Set<number>();
   cells.forEach((el, cell) => {
     const { row, column } = coords(cell, role);
@@ -116,18 +118,17 @@ const page = mountTurnPage(checkers);
 function tap(square: number) {
   const state = page.state;
   if (!page.canMove()) return;
+  pathState = state;
   if (path.length === 0) {
     if (starts(state, [square]).length > 0) path = [square];
   } else if (nextSquares(state).has(square)) {
     path = [...path, square];
     if (findMove(state, path)) {
-      const payload = encodeMove(path);
+      page.move(encodeMove(path));
       path = [];
-      page.move(payload);
-      return;
     }
   } else {
-    path = [];
+    path = starts(state, [square]).length > 0 ? [square] : [];
   }
-  render(state, page.role);
+  render(page.state, page.role);
 }

@@ -844,6 +844,7 @@ body.viewfinder.guest {
 
 .board.checkers button {
   position: relative;
+  min-height: 0;
   border: 0;
   border-radius: 0;
   background: var(--line);
@@ -871,12 +872,10 @@ body.viewfinder.guest {
   border-radius: 50%;
 }
 
+/* A neutral ring: the landing squares of a multi-jump hold no piece, so there
+   is no --mark-rgb to tint, and a selection neither transmits nor listens. */
 .board.checkers button.from {
-  box-shadow: inset 0 0 0 2px rgba(var(--mark-rgb), 0.55);
-}
-
-.board.checkers button.to {
-  box-shadow: inset 0 0 0 2px var(--line-strong);
+  box-shadow: inset 0 0 0 2px var(--muted);
 }
 
 .board.checkers button.to:not(.x):not(.o)::before {
@@ -885,6 +884,13 @@ body.viewfinder.guest {
   inset: 35%;
   border-radius: 50%;
   background: var(--dim);
+}
+
+/* Tic-tac-toe's game-over dim would grey out the winner's pieces too, so on the
+   checkers board only the empty squares fall back. */
+.board.checkers.over button.x,
+.board.checkers.over button.o {
+  opacity: 1;
 }
 
 .board-code {

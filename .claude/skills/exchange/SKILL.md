@@ -118,14 +118,17 @@ Roles come from the buttons, not a round: **New game** is the host and moves
 first; **Join** is the guest and waits for it. In tic-tac-toe the host is X and
 the guest O; in checkers the host is dark and the guest light.
 
-One frame per move: `type` 0, `seq` = move number mod 4, `session` chosen by the
+Every move's leg is `type` 0, `seq` = move number mod 4, `session` chosen by the
 host and adopted by the guest from the first move it sees. A phone's own moves
 carry its own parity, so its own echo is never the awaited `moveCount % 4` and
-needs no role bit to reject. Tic-tac-toe's payload is one byte, the cell (0–8).
-Checkers packs a path of squares as hop count (4 bits) | jump bit (1 bit) | from
-square (5 bits) | 2 bits per hop direction, so a single step or short jump still
-fits in one frame; the jump bit is per move, not per hop, because a multi-jump's
-hops are always the same distance (see `src/games/checkers/codec.ts`).
+needs no role bit to reject. Tic-tac-toe's payload is one byte, the cell (0–8),
+so every move is one frame. Checkers packs a path of squares as hop count (4
+bits) | jump bit (1 bit) | from square (5 bits) | 2 bits per hop direction: 10
+bits of header leave room for three hops in a frame's 16 payload bits, so a step
+or a jump of up to three hops is one frame and four hops or more take two. A
+two-frame move over sound at one pass is where **Ping** earns its place. The
+jump bit is per move, not per hop, because a multi-jump's hops are always the
+same distance (see `src/games/checkers/codec.ts`).
 
 Sound plays each move for `passes` passes (default 1); QR shows the move's code
 until the opponent's move arrives. The gear menu picks chirp (on by default),

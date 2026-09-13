@@ -1,5 +1,3 @@
-export const MOVE = 0;
-
 export type Side = "dark" | "light";
 
 export interface Piece {

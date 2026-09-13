@@ -1,5 +1,3 @@
-export const MOVE = 0;
-
 export type Mark = "X" | "O";
 export type Board = (Mark | null)[];
 
