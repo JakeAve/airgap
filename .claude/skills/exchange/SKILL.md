@@ -104,19 +104,31 @@ started. These rules are about how a stall ends short of that.
 
 ## Turn games
 
-Tic-tac-toe (`src/games/ticTacToe/`) has no handshake: the opponent's next move
-is the only confirmation a turn game needs, since player 2 cannot move until
-player 1's move arrives. A move lost in the air is visible to two people sitting
-together, so recovery is a **Ping** button, which sends the last move again, not
-timers and retries.
+Tic-tac-toe (`src/games/ticTacToe/`) and checkers (`src/games/checkers/`) both
+have no handshake: the opponent's next move is the only confirmation a turn game
+needs, since player 2 cannot move until player 1's move arrives. A move lost in
+the air is visible to two people sitting together, so recovery is a **Ping**
+button, which sends the last move again, not timers and retries. Both games
+mount the same page, `src/games/turnPage.ts`: it owns the settings menu, log,
+transmit/receive loop, and the Replay/Switch/Ping buttons, and takes a
+`TurnGame<S>` — initial state, whose turn it is, applying a decoded payload,
+rendering, and the game-over text — so a game only supplies rules and a board.
 
-Roles come from the buttons, not a round: **New game** is X, the host, and moves
-first; **Join** is O, the guest, and waits for it.
+Roles come from the buttons, not a round: **New game** is the host and moves
+first; **Join** is the guest and waits for it. In tic-tac-toe the host is X and
+the guest O; in checkers the host is dark and the guest light.
 
-One frame per move: `type` 0, `seq` = move number mod 4, `session` chosen by the
-host and adopted by the guest from the first move it sees, payload one byte (the
-cell, 0–8). A phone's own moves carry its own parity, so its own echo is never
-the awaited `moveCount % 4` and needs no role bit to reject.
+Every move's leg is `type` 0, `seq` = move number mod 4, `session` chosen by the
+host and adopted by the guest from the first move it sees. A phone's own moves
+carry its own parity, so its own echo is never the awaited `moveCount % 4` and
+needs no role bit to reject. Tic-tac-toe's payload is one byte, the cell (0–8),
+so every move is one frame. Checkers packs a path of squares as hop count (4
+bits) | jump bit (1 bit) | from square (5 bits) | 2 bits per hop direction: 10
+bits of header leave room for three hops in a frame's 16 payload bits, so a step
+or a jump of up to three hops is one frame and four hops or more take two. A
+two-frame move over sound at one pass is where **Ping** earns its place. The
+jump bit is per move, not per hop, because a multi-jump's hops are always the
+same distance (see `src/games/checkers/codec.ts`).
 
 Sound plays each move for `passes` passes (default 1); QR shows the move's code
 until the opponent's move arrives. The gear menu picks chirp (on by default),
@@ -124,17 +136,29 @@ qrcode (off), the sound protocol (default ultrasound fastest) and passes, saved
 in localStorage under `airgap.settings`; channels can change mid-game. The
 decoder hears every protocol, so the two phones need not match.
 
-When a game ends, **Replay** and **Switch letters** start a new game locally,
-with no handshake: the players agree out loud and both tap the same one. Every
-new game has a fresh host session, and a guest ignores the previous game's
-session, because the last game's final move can still be chirping and would
-otherwise pass for move 0.
+When a game ends, **Replay** and **Switch letters** (tic-tac-toe) or **Switch
+colours** (checkers) start a new game locally, with no handshake: the players
+agree out loud and both tap the same one. Every new game has a fresh host
+session, and a guest ignores the previous game's session, because the last
+game's final move can still be chirping and would otherwise pass for move 0.
 
-Spaceships (`src/games/spaceships/`) is the second turn game on that shape. One
-SHOT per turn carries the result of the opponent's previous shot _and_ my target
-cell, so the next shot is still the only ack and the opponent learns hit or miss
-when I fire, not when it lands. The result on the wire names the ship only on a
-sunk.
+Checkers has one rule setting, **must jump** (on by default, saved under
+`airgap.checkers`), shown in a `.card.rules` block above Start and again once a
+game ends, not in the gear menu, because both players have to see and agree on
+it; a game with more rules adds more controls to the same card. It is read into
+the state when a game starts; toggling it before the first move restarts the
+game with the new rule, and after that it hides until the game is over. The two
+phones agree on it out loud like a replay: nothing checks that they match, and a
+mismatch shows up as the other phone dropping a move as illegal.
+
+Spaceships (`src/games/spaceships/`) is the third turn game and the one that
+does not mount `turnPage.ts`: it sends a second message type, has a placement
+phase before Start, and keeps listening after the game ends (below), so its
+`ui.ts` carries its own copy of the page plumbing until the shared page grows
+those. One SHOT per turn carries the result of the opponent's previous shot
+_and_ my target cell, so the next shot is still the only ack and the opponent
+learns hit or miss when I fire, not when it lands. The result on the wire names
+the ship only on a sunk.
 
 REVEAL is the fleet in five bytes — bow cell, `0x80` set when vertical, ships in
 a fixed order — three frames rather than one. The loser reveals instead of

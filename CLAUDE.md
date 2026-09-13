@@ -77,12 +77,19 @@ committing.
   - `transports/codecWorkerProtocol.ts` — message types for the worker
 - `src/games/<game>/` — `codec.ts`, `logic.ts`, `ui.ts` per game. `diag/` is the
   diagnostics page's game: free text at five bits a character; `ticTacToe/` is
-  the board, turn order, and the win/draw check
-- `src/games/ticTacToe/ui.ts` + `static/tictactoe.html` — tic-tac-toe's screen,
-  built on the exchange screen's viewfinder layout
-- `src/games/spaceships/` + `static/spaceships.html` — battleship: fleet
-  placement, two 10×10 sectors and the end-of-game reveal, on the same
-  viewfinder layout
+  the board, turn order, and the win/draw check; `checkers/` is the board,
+  captures, kinging, and forced-jump rules; `spaceships/` is battleship: fleet
+  placement, two 10×10 sectors, and the end-of-game reveal
+- `src/games/turn.ts` + `src/games/turnPage.ts` — the shared turn-game page:
+  `turn.ts` has the `Role` type and the no-handshake accept rule, `turnPage.ts`
+  has the DOM plumbing (settings menu, log, QR/sound transmit, receive loop)
+  tic-tac-toe and checkers mount
+- `src/games/ticTacToe/ui.ts` + `static/tictactoe.html` and
+  `src/games/checkers/ui.ts` + `static/checkers.html` — each game's board and
+  screen, both mounting the shared page from `turnPage.ts`
+- `src/games/spaceships/ui.ts` + `static/spaceships.html` — spaceships' screen
+  on the same viewfinder layout, with its own page plumbing because it sends a
+  second message type (the reveal) and has a placement phase before Start
 - `scripts/` — Deno scripts (`build.ts`, `dev.ts` with optional HTTPS from
   `.certs/`, `e2e/` Playwright run against fake devices)
 - `types/` — hand-written declarations for untyped npm packages

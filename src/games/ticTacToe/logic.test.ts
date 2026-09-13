@@ -1,9 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import {
-  accepts,
   emptyBoard,
   isLegal,
-  MOVE,
   moveCount,
   outcome,
   play,
@@ -68,62 +66,4 @@ Deno.test("outcome is null mid-game, and isLegal is false once decided", () => {
 
   const won = ["X", "X", "X", null, "O", "O", null, null, null] as const;
   assertEquals(isLegal(won.slice(), 3), false);
-});
-
-Deno.test("accepts a move frame whose seq and session match the awaited move", () => {
-  const board = emptyBoard();
-  assertEquals(
-    accepts(board, 7, { type: MOVE, seq: 0, session: 7 }),
-    true,
-  );
-});
-
-Deno.test("accepts rejects our own echo of the previous move", () => {
-  const board = play(emptyBoard(), 0);
-  assertEquals(
-    accepts(board, 7, { type: MOVE, seq: 0, session: 7 }),
-    false,
-  );
-  assertEquals(
-    accepts(board, 7, { type: MOVE, seq: 1, session: 7 }),
-    true,
-  );
-});
-
-Deno.test("accepts rejects a frame from a different session", () => {
-  const board = emptyBoard();
-  assertEquals(
-    accepts(board, 7, { type: MOVE, seq: 0, session: 9 }),
-    false,
-  );
-});
-
-Deno.test("accepts any session on an empty board when ours is unknown", () => {
-  const board = emptyBoard();
-  assertEquals(
-    accepts(board, undefined, { type: MOVE, seq: 0, session: 42 }),
-    true,
-  );
-});
-
-Deno.test("accepts requires an unknown session's board to still be empty", () => {
-  const board = play(emptyBoard(), 0);
-  assertEquals(
-    accepts(board, undefined, { type: MOVE, seq: 1, session: 42 }),
-    false,
-  );
-});
-
-Deno.test("accepts ignores the previous game's session when joining a replay", () => {
-  const leg = { type: MOVE, seq: 0, session: 42 };
-  assertEquals(accepts(emptyBoard(), undefined, leg, 42), false);
-  assertEquals(accepts(emptyBoard(), undefined, leg, 7), true);
-});
-
-Deno.test("accepts rejects a non-move frame type", () => {
-  const board = emptyBoard();
-  assertEquals(
-    accepts(board, 7, { type: MOVE + 1, seq: 0, session: 7 }),
-    false,
-  );
 });

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <title>Airgap checkers</title>
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="viewfinder">
+    <video id="camera" class="camera" hidden></video>
+    <header class="vf-head">
+      <h1><a href="./">Airgap</a></h1>
+      <details id="menu" class="vf-menu">
+        <summary class="vf-gear" aria-label="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </summary>
+        <div id="settings" class="card vf-settings">
+          <span class="label">Send moves by</span>
+          <label class="check"><input id="chirp" type="checkbox" checked />
+        chirp</label>
+          <label class="check"><input id="qrcode" type="checkbox" />
+        qrcode</label>
+          <label>Chirp protocol
+        <select id="protocol">
+          <option value="ultrasound-fastest">ultrasound fastest</option>
+          <option value="ultrasound-fast">ultrasound fast</option>
+          <option value="ultrasound-normal">ultrasound normal</option>
+          <option value="fastest">fastest</option>
+          <option value="fast">fast</option>
+          <option value="normal">normal</option>
+        </select>
+      </label>
+          <label>Chirp passes per move
+        <input
+          id="passes"
+          type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          min="1"
+          max="20"
+          value="1"
+        />
+      </label>
+        </div>
+      </details>
+    </header>
+    <div class="vf-status vf-top">
+      <span id="dot" class="dot"></span>
+      <span id="status" class="mono">ready</span>
+    </div>
+    <div class="vf-middle">
+      <div id="rules" class="card rules">
+        <span class="label">Rules</span>
+        <label class="check"><input id="mustjump" type="checkbox" checked />
+          must jump</label>
+      </div>
+      <button id="start" class="tx">Start</button>
+      <div id="board" class="card board checkers" role="group"
+        aria-label="Board">
+        <canvas
+          id="code"
+          class="board-code"
+          aria-label="This move as a QR code; tap to see the board"
+          hidden
+        ></canvas>
+      </div>
+      <button id="ping" hidden disabled>Ping</button>
+      <div id="again" class="row" hidden>
+        <button id="switch" class="tx">Switch colours</button>
+        <button id="replay">Replay</button>
+      </div>
+    </div>
+    <footer class="vf-foot">
+      <details>
+        <summary class="mono muted">Log</summary>
+        <pre id="log" class="log"></pre>
+      </details>
+    </footer>
+    <script type="module" src="./checkers.js"></script>
+  </body>
+</html>

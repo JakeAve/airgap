@@ -853,6 +853,63 @@ body.guest {
   animation: win-pop 500ms ease-out 350ms both;
 }
 
+/* Checkers: 64 squares, playable on the dark diagonals only. */
+.board.checkers {
+  grid-template: repeat(8, 1fr) / repeat(8, 1fr);
+  gap: 2px;
+}
+
+.board.checkers button {
+  position: relative;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--line);
+}
+
+.board.checkers button:disabled {
+  background: transparent;
+}
+
+.board.checkers button.x::before,
+.board.checkers button.o::before {
+  content: "";
+  position: absolute;
+  inset: 13%;
+  border: 2px solid var(--mark);
+  border-radius: 50%;
+  background: rgba(var(--mark-rgb), 0.25);
+}
+
+.board.checkers button.king::after {
+  content: "";
+  position: absolute;
+  inset: 33%;
+  border: 2px solid var(--mark);
+  border-radius: 50%;
+}
+
+/* A neutral ring: the landing squares of a multi-jump hold no piece, so there
+   is no --mark-rgb to tint, and a selection neither transmits nor listens. */
+.board.checkers button.from {
+  box-shadow: inset 0 0 0 2px var(--muted);
+}
+
+.board.checkers button.to:not(.x):not(.o)::before {
+  content: "";
+  position: absolute;
+  inset: 35%;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+/* Tic-tac-toe's game-over dim would grey out the winner's pieces too, so on the
+   checkers board only the empty squares fall back. */
+.board.checkers.over button.x,
+.board.checkers.over button.o {
+  opacity: 1;
+}
+
 .board-code {
   position: absolute;
   z-index: 2;
@@ -1093,6 +1150,13 @@ button:has(.sector.small) {
 .vf-settings {
   position: fixed;
   inset: 56px 1rem auto auto;
+  gap: 0.25rem;
+  color: var(--fg);
+}
+
+/* A game's rule options, agreed before Start and again before a replay. */
+.rules {
+  width: min(100%, 20rem);
   gap: 0.25rem;
   color: var(--fg);
 }
