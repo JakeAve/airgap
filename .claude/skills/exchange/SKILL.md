@@ -151,6 +151,32 @@ game with the new rule, and after that it hides until the game is over. The two
 phones agree on it out loud like a replay: nothing checks that they match, and a
 mismatch shows up as the other phone dropping a move as illegal.
 
+Spaceships (`src/games/spaceships/`) is the third turn game and the one that
+does not mount `turnPage.ts`: it sends a second message type, has a placement
+phase before Start, and keeps listening after the game ends (below), so its
+`ui.ts` carries its own copy of the page plumbing until the shared page grows
+those. One SHOT per turn carries the result of the opponent's previous shot
+_and_ my target cell, so the next shot is still the only ack and the opponent
+learns hit or miss when I fire, not when it lands. The result on the wire names
+the ship only on a sunk.
+
+REVEAL is the fleet in five bytes — bow cell, `0x80` set when vertical, ships in
+a fixed order — three frames rather than one. The loser reveals instead of
+shooting and that ends the game; the winner answers with its own reveal, which
+is the loser's ack. The winner's reveal is then the unconfirmed last message,
+this page's TIME_WAIT: after winning, the page keeps listening at the count the
+loser's reveal carried, two back from its own, and re-sends its reveal each time
+a Ping brings that reveal round again. The loser has the mirror case until the
+winner's reveal lands: it listens for that reveal and for the fatal shot two
+back, answering a repeat of the shot with its reveal again, and keeps Replay and
+Switch hidden meanwhile. `awaitedCounts` in `logic.ts` owns both windows, and
+every count transition (`shoot`, `receiveShot`, `reveal`, `receiveReveal`) lives
+there too, so the page never does count arithmetic. A REVEAL is dropped like an
+illegal shot unless we have lost or it makes our pending shot the win.
+
+`seq` is the message count mod 4 on both sides, the same parity trick that makes
+a phone's own echo unawaited, and both message types pass through one `accepts`.
+
 ## The exchange screen
 
 `handshake.html` (`src/handshake.ts`) is the screen games will use, chosen from
