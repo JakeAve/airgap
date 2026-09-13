@@ -45,7 +45,8 @@ committing.
 Default: work in a git worktree branched from `origin/main`, not the current
 checkout. `git fetch origin main` first; if local `main` is stale, `git pull`
 it. Open a PR when the task is done — don't commit straight to the branch you
-started in.
+started in. Once the PR merges, remove the worktree (`git worktree remove`) and
+delete the branch.
 
 ## Directory Map
 
