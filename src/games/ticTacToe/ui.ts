@@ -72,6 +72,7 @@ function drawStrike(board: Board, [first, , last]: number[]) {
 }
 
 const ticTacToe: TurnGame<Board> = {
+  id: "tictactoe",
   initial: emptyBoard,
   moveCount,
   turn: (board) => turn(board) === "X" ? "host" : "guest",

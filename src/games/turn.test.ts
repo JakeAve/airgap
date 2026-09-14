@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { accepts, MOVE } from "./turn.ts";
+import { accepts, MOVE, replay } from "./turn.ts";
 
 Deno.test("accepts a move frame whose seq and session match the awaited move", () => {
   assertEquals(accepts(0, 7, { type: MOVE, seq: 0, session: 7 }), true);
@@ -36,4 +36,21 @@ Deno.test("accepts ignores the previous game's session when joining a replay", (
 
 Deno.test("accepts rejects a non-move frame type", () => {
   assertEquals(accepts(0, 7, { type: MOVE + 1, seq: 0, session: 7 }), false);
+});
+
+const counter = {
+  initial: () => 0,
+  play: (state: number, payload: Uint8Array) =>
+    payload[0] === state ? state + 1 : null,
+};
+
+Deno.test("replay plays a legal sequence from the initial state", () => {
+  const moves = [0, 1, 2].map((n) => Uint8Array.of(n));
+  assertEquals(replay(counter, moves), 3);
+  assertEquals(replay(counter, []), 0);
+});
+
+Deno.test("replay returns null when one move is illegal", () => {
+  const moves = [0, 2, 2].map((n) => Uint8Array.of(n));
+  assertEquals(replay(counter, moves), null);
 });

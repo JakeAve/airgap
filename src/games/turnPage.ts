@@ -4,13 +4,25 @@
 import { buildFrames, type Message } from "@/lib/frames/frames.ts";
 import type { TransportId } from "@/lib/transport.ts";
 import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
-import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
+import { QrEncoder, type QrMatrix } from "@/lib/transports/qr/qrEncoder.ts";
 import { QR_COLORS, QR_GUEST_COLORS } from "@/lib/transports/qr/rasterize.ts";
 import { drawQr } from "@/adapters/screen.ts";
 import { newSessionId, openLink, type PageLink } from "@/adapters/pageLink.ts";
-import { accepts, MOVE, type Role } from "./turn.ts";
+import {
+  decodeShare,
+  deleteSave,
+  encodeShare,
+  GAME_PAGES,
+  type GameId,
+  getSave,
+  newSaveId,
+  putSave,
+  type Save,
+} from "@/games/saves.ts";
+import { accepts, MOVE, replay, type Role } from "./turn.ts";
 
 export interface TurnGame<S> {
+  id: GameId;
   initial(): S;
   moveCount(state: S): number;
   turn(state: S): Role;
@@ -51,6 +63,19 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   };
 
   const params = new URLSearchParams(location.search);
+  const shared = /^#r=(.*)$/.exec(location.hash);
+  if (shared) {
+    const imported = decodeShare(game.id, shared[1]);
+    if (imported) {
+      const id = newSaveId();
+      putSave(localStorage, { ...imported, id, playedAt: Date.now() });
+      params.set("role", imported.role);
+      params.set("save", id);
+    } else {
+      log("ignored an unreadable share link");
+    }
+    history.replaceState(null, "", `?${params}`);
+  }
   let role: Role = params.get("role") === "guest" ? "guest" : "host";
   let qrColors = QR_COLORS;
 
@@ -63,6 +88,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   const camera = $<HTMLVideoElement>("camera");
   const ping = $<HTMLButtonElement>("ping");
   const start = $<HTMLButtonElement>("start");
+  const share = $<HTMLButtonElement>("share");
   /** The host's rule checkboxes, if the game has any: only shown while the host is setting up. */
   const options = document.getElementById("options");
   const qrEncoder = new QrEncoder();
@@ -74,6 +100,8 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   let lastSent: Message | undefined;
   let showing: Message | undefined;
   let codeDismissed = false;
+  let sharing: QrMatrix | undefined;
+  let save: Save | undefined;
   let sounding: AbortController | undefined;
   let receiving: AbortController | undefined;
   /** False before Start, and while the host is choosing rules after Replay. */
@@ -81,13 +109,24 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
 
   const playing = () => `${role} playing ${game.label(role)}`;
 
-  function setRole(next: Role) {
+  function applyRole(next: Role) {
     role = next;
     qrColors = role === "guest" ? QR_GUEST_COLORS : QR_COLORS;
     document.body.classList.remove("host", "guest");
     document.body.classList.add(role);
     params.set("role", role);
     history.replaceState(null, "", `?${params}`);
+  }
+
+  function dropSave() {
+    save = undefined;
+    sharing = undefined;
+    params.delete("save");
+    history.replaceState(null, "", `?${params}`);
+  }
+
+  function setRole(next: Role) {
+    applyRole(next);
     if (role === "guest") {
       session = undefined;
       return;
@@ -104,7 +143,10 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
 
   function status() {
     const over = game.over(state);
-    if (options) options.hidden = role !== "host" || started;
+    if (options) {
+      options.hidden = role !== "host" || started || game.moveCount(state) > 0;
+    }
+    share.hidden = !save || over;
     const [text, tone] = !link || !started
       ? ["ready", ""]
       : over
@@ -125,8 +167,12 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   }
 
   function drawCode() {
-    if (showing && qrcode.checked && !codeDismissed) {
-      drawQr(qrEncoder.encode(buildFrames(showing)), code, qrColors);
+    const matrix = sharing ??
+      (showing && qrcode.checked && !codeDismissed
+        ? qrEncoder.encode(buildFrames(showing))
+        : undefined);
+    if (matrix) {
+      drawQr(matrix, code, qrColors);
       code.hidden = false;
       if (code.scrollIntoView) code.scrollIntoView({ block: "center" });
     } else {
@@ -141,6 +187,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
     sounding?.abort();
     sounding = undefined;
     showing = m;
+    sharing = undefined;
     codeDismissed = false;
     drawCode();
     log(`sent ${describe(m)} over ${channels().join(" + ") || "nothing"}`);
@@ -192,8 +239,31 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
       showing = undefined;
       session ??= m.session;
       log(`received ${describe(m)}`);
+      record(next, m.payload);
       moved(next);
     }
+  }
+
+  function record(next: S, payload: Uint8Array) {
+    if (session === undefined) return;
+    if (game.over(next)) {
+      if (save) deleteSave(localStorage, save.id);
+      dropSave();
+      return;
+    }
+    const moves = [...(save?.moves ?? []), Array.from(payload)];
+    save = {
+      id: save?.id ?? newSaveId(),
+      game: game.id,
+      role,
+      session,
+      count: moves.length,
+      playedAt: Date.now(),
+      moves,
+    };
+    putSave(localStorage, save);
+    params.set("save", save.id);
+    history.replaceState(null, "", `?${params}`);
   }
 
   function moved(next: S) {
@@ -221,6 +291,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
       payload,
     };
     ping.disabled = false;
+    record(next, payload);
     moved(next);
     transmit(lastSent);
   }
@@ -303,8 +374,25 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   });
 
   code.onclick = () => {
-    codeDismissed = true;
+    if (sharing) sharing = undefined;
+    else codeDismissed = true;
     drawCode();
+  };
+
+  share.onclick = () => {
+    if (!save) return;
+    const opponent: Role = role === "host" ? "guest" : "host";
+    const url = new URL(
+      `${GAME_PAGES[game.id]}?role=${opponent}#r=${encodeShare(save)}`,
+      location.href,
+    );
+    try {
+      sharing = qrEncoder.encodeText(url.href);
+    } catch (err) {
+      log(`share link too long for a QR code: ${err}`);
+    }
+    drawCode();
+    menu.open = false;
   };
 
   ping.onclick = () => {
@@ -320,6 +408,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
     if (lastSent !== undefined || game.moveCount(state) > 0) {
       previousSession = session;
     }
+    dropSave();
     setRole(nextRole);
     state = game.initial();
     lastSent = undefined;
@@ -336,7 +425,39 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   $("replay").onclick = () => newGame(role);
   $("switch").onclick = () => newGame(role === "host" ? "guest" : "host");
 
-  setRole(role);
+  function resume(id: string): boolean {
+    const found = getSave(localStorage, id);
+    const moves = found?.moves.map((m) => Uint8Array.from(m)) ?? [];
+    const last = moves.pop();
+    const before = found && last ? replay(game, moves) : null;
+    const after = before === null || !last ? null : game.play(before, last);
+    if (
+      !found || !last || before === null || after === null || game.over(after)
+    ) {
+      deleteSave(localStorage, id);
+      log(`could not resume save ${id}, starting fresh`);
+      dropSave();
+      return false;
+    }
+    save = found;
+    session = found.session;
+    applyRole(found.role);
+    state = after;
+    if (game.turn(before) === role) {
+      lastSent = {
+        type: MOVE,
+        seq: game.moveCount(before) % 4,
+        session,
+        payload: last,
+      };
+      ping.disabled = false;
+    }
+    log(`resumed ${playing()} after ${found.count} moves, session ${session}`);
+    return true;
+  }
+
+  const saveId = params.get("save");
+  if (saveId === null || !resume(saveId)) setRole(role);
   game.render(state, role);
   status();
 
