@@ -87,17 +87,18 @@ delete the branch.
   diagnostics page's game: free text at five bits a character; `ticTacToe/` is
   the board, turn order, and the win/draw check; `checkers/` is the board,
   captures, kinging, and forced-jump rules; `spaceships/` is battleship: fleet
-  placement, two 10×10 sectors, and the end-of-game reveal; `hive/` is Swarm, a
-  Hive game on a hex grid: stacks, per-piece moves, Crane throws, and the
+  placement, two 10×10 sectors, and the end-of-game reveal; `chess/` is the
+  board, full FIDE movement, check, and every draw; `hive/` is Swarm, a Hive
+  game on a hex grid: stacks, per-piece moves, Crane throws, and the
   surrounded-Motherboard win
 - `src/games/turn.ts` + `src/games/turnPage.ts` — the shared turn-game page:
   `turn.ts` has the `Role` type and the no-handshake accept rule, `turnPage.ts`
   has the DOM plumbing (settings menu, log, QR/sound transmit, receive loop)
-  tic-tac-toe and checkers mount
+  tic-tac-toe, checkers, chess, and Swarm mount
 - `src/games/ticTacToe/ui.ts` + `static/tictactoe.html`,
-  `src/games/checkers/ui.ts` + `static/checkers.html`, and
-  `src/games/hive/ui.ts` + `static/swarm.html` — each game's board and screen,
-  all mounting the shared page from `turnPage.ts`
+  `src/games/checkers/ui.ts` + `static/checkers.html`, `src/games/chess/ui.ts` +
+  `static/chess.html`, and `src/games/hive/ui.ts` + `static/swarm.html` — each
+  game's board and screen, all mounting the shared page from `turnPage.ts`
 - `src/games/spaceships/ui.ts` + `static/spaceships.html` — spaceships' screen
   on the same viewfinder layout, with its own page plumbing because it sends a
   second message type (the reveal) and has a placement phase before Start

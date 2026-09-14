@@ -21,6 +21,8 @@ const APP_SHELL = [
   "./tictactoe.js",
   "./checkers.html",
   "./checkers.js",
+  "./chess.html",
+  "./chess.js",
   "./spaceships.html",
   "./spaceships.js",
   "./swarm.html",

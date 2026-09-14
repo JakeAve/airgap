@@ -23,6 +23,15 @@ const GAMES = [
     </svg>`,
   },
   {
+    name: "Chess",
+    page: "./chess.html",
+    icon:
+      `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path class="x" d="M6 19l1.5-8L4 7l5 2 3-6 3 6 5-2-3.5 4L18 19z"></path>
+      <path class="o" d="M6 21h12"></path>
+    </svg>`,
+  },
+  {
     name: "Spaceships",
     page: "./spaceships.html",
     icon:
