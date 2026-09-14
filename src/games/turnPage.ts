@@ -62,6 +62,9 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   const code = $<HTMLCanvasElement>("code");
   const camera = $<HTMLVideoElement>("camera");
   const ping = $<HTMLButtonElement>("ping");
+  const start = $<HTMLButtonElement>("start");
+  /** The host's rule checkboxes, if the game has any: only shown while the host is setting up. */
+  const options = document.getElementById("options");
   const qrEncoder = new QrEncoder();
 
   let link: PageLink | undefined;
@@ -73,6 +76,8 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   let codeDismissed = false;
   let sounding: AbortController | undefined;
   let receiving: AbortController | undefined;
+  /** False before Start, and while the host is choosing rules after Replay. */
+  let started = false;
 
   const playing = () => `${role} playing ${game.label(role)}`;
 
@@ -99,7 +104,8 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
 
   function status() {
     const over = game.over(state);
-    const [text, tone] = !link
+    if (options) options.hidden = role !== "host" || started;
+    const [text, tone] = !link || !started
       ? ["ready", ""]
       : over
       ? [game.result(state, role), ""]
@@ -200,7 +206,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   }
 
   function canMove(): boolean {
-    return !!link && session !== undefined && !game.over(state) &&
+    return !!link && started && session !== undefined && !game.over(state) &&
       game.turn(state) === role;
   }
 
@@ -245,26 +251,29 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
     game.render(state, role);
   }
 
-  $("start").onclick = async () => {
-    $("start").hidden = true;
-    $("status").textContent = "opening devices";
-    try {
-      link = await openLink(code, camera);
-      link.sound.log = log;
-      // The two phones face each other screen to screen.
-      link.qr.facing = "user";
-    } catch (err) {
-      log(`could not start: ${err}`);
-      $("start").hidden = false;
-      status();
-      return;
+  start.onclick = async () => {
+    start.hidden = true;
+    if (!link) {
+      $("status").textContent = "opening devices";
+      try {
+        link = await openLink(code, camera);
+        link.sound.log = log;
+        // The two phones face each other screen to screen.
+        link.qr.facing = "user";
+      } catch (err) {
+        log(`could not start: ${err}`);
+        start.hidden = false;
+        status();
+        return;
+      }
+      ping.hidden = false;
     }
+    started = true;
     log(
       `${playing()} at ${link.sampleRate} Hz, ${protocol.value}, ${passes()} passes, session ${
         session ?? "from the first move"
       }`,
     );
-    ping.hidden = false;
     await syncChannels();
   };
 
@@ -306,12 +315,18 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
     receiving?.abort();
     sounding?.abort();
     sounding = undefined;
-    previousSession = session;
+    // A restart before any move (a rule toggle during setup) never reached the
+    // other phone, so the session it drops is not one to avoid.
+    if (lastSent !== undefined || game.moveCount(state) > 0) {
+      previousSession = session;
+    }
     setRole(nextRole);
     state = game.initial();
     lastSent = undefined;
     showing = undefined;
     ping.disabled = true;
+    started = !!link && (role === "guest" || !options);
+    start.hidden = started;
     log(
       `new game: ${playing()}, session ${session ?? "from the first move"}`,
     );
