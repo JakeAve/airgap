@@ -13,6 +13,8 @@ import {
   awaitedCounts,
   canPlace,
   cells,
+  clampPlacement,
+  firstFit,
   type Fleet,
   type Game,
   GRID,
@@ -65,8 +67,10 @@ const smallSector = small.querySelector(".sector") as HTMLElement;
 const qrEncoder = new QrEncoder();
 
 let page: PageLink | undefined;
+const LAST_SHIP = SHIPS.length - 1;
 let myFleet: (Placement | null)[] = new Array(SHIPS.length).fill(null);
-let picked: number | null = null;
+let current = 0;
+myFleet[current] = firstFit(myFleet, current);
 let game: Game | undefined;
 let theirFleet: Fleet | undefined;
 let selected: number | null = null;
@@ -129,26 +133,16 @@ const bigLabel = big.querySelector(".sector-label") as HTMLElement;
 const bigCount = bigLabel.querySelector(".mono") as HTMLElement;
 const smallLabel = smallSector.querySelector(".sector-label") as HTMLElement;
 
-const chips = SHIPS.map(({ name, length }, ship) => {
-  const chip = document.createElement("button");
-  chip.className = "chip";
-  const count = document.createElement("span");
-  count.className = "mono";
-  count.textContent = String(length);
-  chip.append(`${name} `, count);
-  chip.onclick = () => {
-    picked = picked === ship ? null : ship;
-    note = undefined;
-    render();
-    status();
-  };
-  return chip;
-});
-$("chips").append(...chips);
+const pips = SHIPS.map(() => document.createElement("span"));
+$("pips").append(...pips);
 
 const hullMarkup = new Map<Element, string>();
 
-function fleetSvg(fleet: (Placement | null)[], damage: number[]): string {
+function fleetSvg(
+  fleet: (Placement | null)[],
+  damage: number[],
+  pending = -1,
+): string {
   return fleet.map((p, ship) => {
     if (!p) return "";
     const L = SHIPS[ship].length;
@@ -168,7 +162,9 @@ function fleetSvg(fleet: (Placement | null)[], damage: number[]): string {
         ]
         : []
     );
-    return `<g transform="${frame}">` +
+    return `<g transform="${frame}"${
+      ship === pending ? ` class="pending"` : ""
+    }>` +
       `<path d="M0.08,0.5 L0.5,0.14 H${L - 0.22} Q${L - 0.08},0.14 ${
         L - 0.08
       },0.28 V0.72 Q${L - 0.08},0.86 ${L - 0.22},0.86 H0.5 Z"/>` +
@@ -218,7 +214,9 @@ function paintSector(
       ? theirFleet && game
         ? fleetSvg(theirFleet, game.mine.map((s) => s.cell))
         : ""
-      : fleetSvg(game?.fleet ?? myFleet, game?.theirs.map((s) => s.cell) ?? []),
+      : game
+      ? fleetSvg(game.fleet, game.theirs.map((s) => s.cell))
+      : fleetSvg(myFleet, [], current),
   );
 }
 
@@ -240,13 +238,19 @@ function render() {
       }`,
     );
   });
-  chips.forEach((chip, ship) => {
-    chip.classList.toggle("picked", picked === ship);
-    chip.classList.toggle("placed", myFleet[ship] !== null);
+  $("placing").hidden = !placing;
+  $("play").hidden = placing;
+  $("ship-name").textContent = SHIPS[current].name;
+  $("ship-length").textContent = `${SHIPS[current].length} long`;
+  $("ship-count").textContent = `${current + 1}/${SHIPS.length}`;
+  pips.forEach((pip, ship) => {
+    pip.className = ship < current ? "done" : ship === current ? "current" : "";
   });
-  $("chips").hidden = !placing;
-  $("shuffle").hidden = !placing;
-  start.hidden = !placing;
+  $<HTMLButtonElement>("back").disabled = current === 0;
+  $<HTMLButtonElement>("rotate").disabled = !myFleet[current];
+  $("place").hidden = current === LAST_SHIP;
+  $<HTMLButtonElement>("place").disabled = !myFleet[current];
+  start.hidden = current !== LAST_SHIP;
   start.disabled = !myFleet.every(Boolean);
   small.hidden = placing;
   fireButton.hidden = placing;
@@ -475,15 +479,13 @@ function tap(cell: number) {
 }
 
 function placeAt(cell: number) {
-  const ship = picked ??
-    myFleet.findIndex((p, i) => p && cells(i, p).includes(cell));
-  if (ship < 0) return;
-  const p: Placement = picked !== null
-    ? { bow: cell, vertical: false }
-    : { bow: myFleet[ship]!.bow, vertical: !myFleet[ship]!.vertical };
-  if (canPlace(myFleet, ship, p)) {
-    myFleet[ship] = p;
-    picked = null;
+  movePending({ bow: cell, vertical: myFleet[current]?.vertical ?? false });
+}
+
+function movePending(p: Placement) {
+  const fitted = clampPlacement(current, p);
+  if (canPlace(myFleet, current, fitted)) {
+    myFleet[current] = fitted;
     note = undefined;
   } else {
     note = "doesn't fit";
@@ -491,6 +493,29 @@ function placeAt(cell: number) {
   render();
   status();
 }
+
+$("rotate").onclick = () => {
+  const p = myFleet[current];
+  if (p) movePending({ bow: p.bow, vertical: !p.vertical });
+};
+
+$("place").onclick = () => {
+  if (!myFleet[current] || current === LAST_SHIP) return;
+  current++;
+  myFleet[current] = firstFit(myFleet, current);
+  note = undefined;
+  render();
+  status();
+};
+
+$("back").onclick = () => {
+  if (current === 0) return;
+  myFleet[current] = null;
+  current--;
+  note = undefined;
+  render();
+  status();
+};
 
 fireButton.onclick = () => {
   if (!game || session === undefined || selected === null) return;
@@ -511,9 +536,9 @@ small.onclick = () => {
   render();
 };
 
-$("shuffle").onclick = () => {
+$("randomize").onclick = () => {
   myFleet = randomFleet();
-  picked = null;
+  current = LAST_SHIP;
   note = undefined;
   render();
   status();
@@ -613,7 +638,6 @@ function reset(nextRole: "host" | "guest") {
   game = undefined;
   theirFleet = undefined;
   selected = null;
-  picked = null;
   note = undefined;
   lastSent = undefined;
   showing = undefined;

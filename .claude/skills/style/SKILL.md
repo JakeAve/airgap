@@ -139,11 +139,16 @@ Spaceships' sectors are `.sector` CSS grids with the ships drawn as one inline
 coordinates are cell coordinates and one drawing serves placement, play and the
 reveal. Cells are buttons on the big sector and spans on the small one, because
 the small card is itself a button. Damage on `.hull .hit` is the eighth place
-glow is allowed and a selected cell the ninth. `.sector` binds `--owner` and
-`--shooter` (with `-rgb` and `-core` pairs) to `--me` and `--them`; the hull,
-hit and selection rules read only those, and `.sector.enemy` swaps the binding,
-so the same markup and rules show a revealed enemy fleet. The ship chips are
-built by the page from `SHIPS`, so the markup carries an empty `#chips`.
+glow is allowed, a selected cell the ninth, and the ship being placed
+(`.hull .pending`, with the placed ones dimmed) the tenth. `.sector` binds
+`--owner` and `--shooter` (with `-rgb` and `-core` pairs) to `--me` and
+`--them`; the hull, hit and selection rules read only those, and `.sector.enemy`
+swaps the binding, so the same markup and rules show a revealed enemy fleet.
+Placement is one ship at a time in `SHIPS` order: `.placing` holds the ship's
+name and `n/5`, the `.pips` progress, and Back / Rotate / Place (Start on the
+last ship) in `.placing-controls`, with Randomize All under them. The pips are
+built by the page, so the markup carries an empty `#pips`. The placement canvas
+is at https://claude.ai/code/artifact/47de8284-cc69-41ac-b29f-8e7d33850402.
 
 The big sector's cells come out around 34px on a phone, under the 44px rule;
 selecting a cell and then pressing Fire is the mitigation, untested on a real
