@@ -1,4 +1,4 @@
-import { assertEquals, assertNotEquals } from "@std/assert";
+import { assertEquals } from "@std/assert";
 import {
   decodeShare,
   deleteSave,
@@ -119,22 +119,18 @@ Deno.test("decodeShare rejects malformed input", () => {
   assertEquals(decodeShare("tictactoe", tooLong), null);
 });
 
-Deno.test("gameLink accepts a matching same-directory game link", () => {
-  const base = new URL("https://example.com/airgap/saves.html");
-  const s = save({ game: "chess", session: 3 });
-  const text = encodeShare(s);
-  const url = new URL(`https://example.com/airgap/chess.html#r=${text}`);
+Deno.test("gameLink rebuilds a game link on this page's origin and directory", () => {
+  const base = new URL("https://example.com/airgap/restore.html");
+  const text = encodeShare(save({ game: "chess", role: "host", session: 3 }));
 
-  const result = gameLink(url.toString(), base);
-  assertNotEquals(result, null);
-  assertEquals(result?.toString(), url.toString());
-});
-
-Deno.test("gameLink rejects a foreign origin", () => {
-  const base = new URL("https://example.com/airgap/saves.html");
-  const text = encodeShare(save({ game: "chess" }));
-  const url = `https://evil.example/airgap/chess.html#r=${text}`;
-  assertEquals(gameLink(url, base), null);
+  for (
+    const shown of ["https://example.com/airgap", "https://10.0.0.84:8443"]
+  ) {
+    assertEquals(
+      gameLink(`${shown}/chess.html?role=host#r=${text}`, base)?.href,
+      `https://example.com/airgap/chess.html?role=guest#r=${text}`,
+    );
+  }
 });
 
 Deno.test("gameLink rejects a non-game page", () => {
@@ -144,13 +140,9 @@ Deno.test("gameLink rejects a non-game page", () => {
   assertEquals(gameLink(url, base), null);
 });
 
-Deno.test("gameLink rejects a different directory and an unparseable url", () => {
+Deno.test("gameLink rejects a missing share and an unparseable url", () => {
   const base = new URL("https://example.com/airgap/saves.html");
-  const text = encodeShare(save({ game: "chess" }));
-  assertEquals(
-    gameLink(`https://example.com/other/chess.html#r=${text}`, base),
-    null,
-  );
+  assertEquals(gameLink("https://example.com/airgap/chess.html", base), null);
   assertEquals(gameLink("not a url", base), null);
 });
 

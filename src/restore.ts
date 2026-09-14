@@ -34,7 +34,7 @@ function onImage(image: RgbaImage): Promise<void> {
 
   const url = gameLink(text, new URL(location.href));
   if (!url) {
-    setStatus("not an Airgap game");
+    setStatus(`not an Airgap game: ${text.slice(0, 60)}`);
     return Promise.resolve();
   }
 

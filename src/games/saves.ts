@@ -156,11 +156,6 @@ export function gameLink(text: string, base: URL): URL | null {
   } catch {
     return null;
   }
-  if (url.origin !== base.origin) return null;
-
-  const dirOf = (u: URL) => u.pathname.slice(0, u.pathname.lastIndexOf("/"));
-  if (dirOf(url) !== dirOf(base)) return null;
-
   const fileName = url.pathname.slice(url.pathname.lastIndexOf("/") + 1);
   const game = (Object.keys(GAME_PAGES) as GameId[]).find(
     (g) => GAME_PAGES[g] === `./${fileName}`,
@@ -168,9 +163,16 @@ export function gameLink(text: string, base: URL): URL | null {
   if (!game) return null;
 
   const match = /^#r=(.*)$/.exec(url.hash);
-  if (!match || decodeShare(game, match[1]) === null) return null;
+  const shared = match && decodeShare(game, match[1]);
+  if (!shared) return null;
 
-  return url;
+  // Rebuilt on this page's own origin: the hash carries the whole game, so a
+  // link shown by a phone on another address still resumes here, and nothing
+  // scanned can send us to a foreign site.
+  return new URL(
+    `${GAME_PAGES[game]}?role=${shared.role}#r=${match[1]}`,
+    base,
+  );
 }
 
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [

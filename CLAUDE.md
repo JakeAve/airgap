@@ -63,8 +63,10 @@ delete the branch.
   (`role`, `via`, `text`, `protocol`, `turnaround`, `guard`, `retries`, `next`)
 - `src/games/saves.ts` — the saves store in `localStorage`: list/get/put/delete,
   eviction past `MAX_SAVES_PER_GAME`, the share-hash codec (`encodeShare` /
-  `decodeShare`), and `gameLink`, which accepts a scanned URL only if it is same
-  origin, same directory, a known game page, and carries a decodable `#r=` hash
+  `decodeShare`), and `gameLink`, which accepts a scanned URL naming a known
+  game page with a decodable `#r=` hash and rebuilds it on the scanning page's
+  own origin, so phones on different addresses can share and nothing scanned
+  navigates off-site
 - `src/restore.ts` + `static/restore.html` — the resume-with-QR page: opens the
   rear camera on a tap and decodes on the main thread (no codec worker, since it
   reads a plain link, not a wire-protocol frame), navigating on the first
