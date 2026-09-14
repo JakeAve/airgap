@@ -32,10 +32,14 @@ deno task test         # unit tests
 deno task pre-commit   # check + test (also run by .githooks/pre-commit)
 deno task pre-push     # check + test (also run by .githooks/pre-push)
 deno task e2e          # build, then drive diag.html and handshake.html in headless Chromium with fake devices
+deno task determinism  # bundle a game's logic and run its golden checksum in Chromium, Firefox, and WebKit
 ```
 
 `deno task e2e` needs a Chromium: `deno run -A npm:playwright install chromium`
 once, or set `CHROMIUM_PATH` (the web sandbox's session hook does this).
+
+`deno task determinism` needs all three engines once:
+`deno run -A npm:playwright install chromium firefox webkit`.
 
 Always run `deno task pre-commit` (or let the git hook run it) before
 committing.
