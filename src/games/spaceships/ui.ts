@@ -8,6 +8,7 @@ import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
 import { QR_COLORS, QR_GUEST_COLORS } from "@/lib/transports/qr/rasterize.ts";
 import { drawQr } from "@/adapters/screen.ts";
 import { newSessionId, openLink, type PageLink } from "@/adapters/pageLink.ts";
+import { deleteSave, getSave, newSaveId, putSave } from "@/games/saves.ts";
 import {
   accepts,
   awaitedCounts,
@@ -83,6 +84,7 @@ let showing: Message | undefined;
 let codeDismissed = false;
 let sounding: AbortController | undefined;
 let receiving: AbortController | undefined;
+let saveId: string | undefined;
 
 function setRole(next: "host" | "guest") {
   role = next;
@@ -250,12 +252,12 @@ function render() {
   $<HTMLButtonElement>("rotate").disabled = !myFleet[current];
   $("place").hidden = current === LAST_SHIP;
   $<HTMLButtonElement>("place").disabled = !myFleet[current];
-  start.hidden = current !== LAST_SHIP;
   start.disabled = !myFleet.every(Boolean);
   small.hidden = placing;
   fireButton.hidden = placing;
   ping.hidden = placing;
-  fireButton.disabled = !game || !bigEnemy || selected === null ||
+  start.hidden = game ? page !== undefined : current !== LAST_SHIP;
+  fireButton.disabled = !page || !game || !bigEnemy || selected === null ||
     session === undefined || !myTurn(game, role) || over !== null;
   $("again").hidden = !over || (over === "lost" && !theirFleet);
 }
@@ -275,6 +277,8 @@ function status() {
     ? [result === "won" ? "you win" : "you lose", ""]
     : channels().length === 0
     ? ["check chirp or qrcode", ""]
+    : !page
+    ? ["press start to resume", ""]
     : sounding
     ? ["sending", "tx"]
     : myTurn(game, role)
@@ -444,8 +448,37 @@ async function awaitMove() {
   }
 }
 
+function dropSave() {
+  saveId = undefined;
+  params.delete("save");
+  history.replaceState(null, "", `?${params}`);
+}
+
+function persist() {
+  if (!game || session === undefined || game.count === 0) return;
+  if (outcome(game)) {
+    if (saveId) deleteSave(localStorage, saveId);
+    dropSave();
+    return;
+  }
+  saveId ??= newSaveId();
+  putSave(localStorage, {
+    id: saveId,
+    game: "spaceships",
+    role,
+    session,
+    count: game.count,
+    playedAt: Date.now(),
+    moves: [],
+    data: game,
+  });
+  params.set("save", saveId);
+  history.replaceState(null, "", `?${params}`);
+}
+
 function moved(next: Game) {
   game = next;
+  persist();
   bigEnemy = outcome(game) !== null || myTurn(game, role);
   selected = null;
   render();
@@ -591,7 +624,8 @@ start.onclick = async () => {
     );
   }
   note = undefined;
-  moved(newGame(myFleet as Fleet));
+  if (game) render();
+  else moved(newGame(myFleet as Fleet));
   await syncChannels();
 };
 
@@ -634,6 +668,8 @@ function reset(nextRole: "host" | "guest") {
   sounding?.abort();
   sounding = undefined;
   previousSession = session;
+  dropSave();
+  $("place").after(start);
   setRole(nextRole);
   game = undefined;
   theirFleet = undefined;
@@ -651,6 +687,72 @@ function reset(nextRole: "host" | "guest") {
 
 $("replay").onclick = () => reset(role);
 $("switch").onclick = () => reset(role === "host" ? "guest" : "host");
+
+const isInt = (x: unknown, below = Infinity): x is number =>
+  Number.isInteger(x) && (x as number) >= 0 && (x as number) < below;
+
+function isResult(x: unknown): x is Result {
+  const r = x as Partial<Result> | null;
+  return typeof r === "object" && r !== null &&
+    ["miss", "hit", "sunk"].includes(r.outcome as string) &&
+    (r.ship === null || isInt(r.ship, SHIPS.length));
+}
+
+function isGame(x: unknown): x is Game {
+  const g = x as Partial<Game> | null;
+  if (typeof g !== "object" || g === null || !isInt(g.count)) return false;
+  const { fleet, mine, theirs } = g;
+  return Array.isArray(fleet) && fleet.length === SHIPS.length &&
+    fleet.every((p, ship) =>
+      typeof p === "object" && p !== null && typeof p.vertical === "boolean" &&
+      canPlace(fleet, ship, p)
+    ) &&
+    Array.isArray(mine) &&
+    mine.every((s) =>
+      isInt(s?.cell, CELLS) && (s.result === null || isResult(s.result))
+    ) &&
+    Array.isArray(theirs) &&
+    theirs.every((s) => isInt(s?.cell, CELLS) && isResult(s.result));
+}
+
+function restore(id: string): boolean {
+  const save = getSave(localStorage, id);
+  if (
+    save?.game !== "spaceships" ||
+    (save.role !== "host" && save.role !== "guest") ||
+    !isInt(save.session, 256) || !isGame(save.data) ||
+    outcome(save.data) !== null
+  ) {
+    return false;
+  }
+  setRole(save.role);
+  session = save.session;
+  saveId = id;
+  game = save.data;
+  myFleet = game.fleet;
+  current = LAST_SHIP;
+  bigEnemy = myTurn(game, role);
+  const pending = game.mine.at(-1);
+  if (!bigEnemy && pending?.result === null) {
+    lastSent = {
+      type: SHOT,
+      seq: (game.count - 1) % 4,
+      session,
+      payload: encodeShot(lastResult(game), pending.cell),
+    };
+    ping.disabled = false;
+  }
+  fireButton.before(start);
+  log(`resumed ${role}, session ${session}, count ${game.count}`);
+  return true;
+}
+
+const saveParam = params.get("save");
+if (saveParam !== null && !restore(saveParam)) {
+  deleteSave(localStorage, saveParam);
+  dropSave();
+  log(`could not restore save ${saveParam}; starting fresh`);
+}
 
 render();
 status();
