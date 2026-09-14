@@ -76,7 +76,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   let codeDismissed = false;
   let sounding: AbortController | undefined;
   let receiving: AbortController | undefined;
-  /** False while the host is choosing rules, before Start or after Replay. */
+  /** False before Start, and while the host is choosing rules after Replay. */
   let started = false;
 
   const playing = () => `${role} playing ${game.label(role)}`;
@@ -315,13 +315,17 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
     receiving?.abort();
     sounding?.abort();
     sounding = undefined;
-    previousSession = session;
+    // A restart before any move (a rule toggle during setup) never reached the
+    // other phone, so the session it drops is not one to avoid.
+    if (lastSent !== undefined || game.moveCount(state) > 0) {
+      previousSession = session;
+    }
     setRole(nextRole);
     state = game.initial();
     lastSent = undefined;
     showing = undefined;
     ping.disabled = true;
-    started = role === "guest" && !!link;
+    started = !!link && (role === "guest" || !options);
     start.hidden = started;
     log(
       `new game: ${playing()}, session ${session ?? "from the first move"}`,
