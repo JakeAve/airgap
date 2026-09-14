@@ -122,7 +122,9 @@ const bigCells = Array.from({ length: CELLS }, (_, cell) => {
   return el;
 });
 const bigHull = hullElement();
-code.before(...bigCells, bigHull);
+const fx = hullElement();
+fx.classList.add("fx");
+code.before(...bigCells, bigHull, fx);
 
 const smallCells = Array.from(
   { length: CELLS },
@@ -184,6 +186,118 @@ function setHull(svg: SVGSVGElement, markup: string) {
   if (hullMarkup.get(svg) === markup) return;
   hullMarkup.set(svg, markup);
   svg.innerHTML = markup;
+}
+
+const stillMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const pause = (ms: number) =>
+  new Promise((done) => setTimeout(done, stillMotion.matches ? 0 : ms));
+
+function fxShape(parent: Element, tag: string, attrs: Record<string, string>) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  parent.append(el);
+  return el;
+}
+
+function centre(cell: number): [number, number] {
+  return [cell % GRID + 0.5, Math.floor(cell / GRID) + 0.5];
+}
+
+/** A missile streaks onto a big-sector cell: up from below when I fire, down from above when they do. */
+async function launch(cell: number, fromAbove: boolean) {
+  if (stillMotion.matches) return;
+  const [x, y] = centre(cell);
+  const x0 = x + (x < GRID / 2 ? 3 : -3);
+  const y0 = fromAbove ? -2 : GRID + 2;
+  const angle = Math.atan2(y - y0, x - x0) * 180 / Math.PI;
+  const missile = fxShape(fx, "g", { class: "missile" });
+  fxShape(missile, "polygon", {
+    points: "-2.2,0 0,-0.09 0,0.09",
+    class: "trail",
+  });
+  fxShape(missile, "circle", { r: "0.14", class: "core" });
+  const at = (px: number, py: number) =>
+    `translate(${px}px, ${py}px) rotate(${angle}deg)`;
+  await missile.animate(
+    [
+      { transform: at(x0, y0), opacity: 0 },
+      { opacity: 1, offset: 0.2 },
+      { transform: at(x, y), opacity: 1 },
+    ],
+    { duration: 520, easing: "cubic-bezier(0.5, 0, 0.9, 0.6)" },
+  ).finished;
+  missile.remove();
+}
+
+/** The burst where a missile lands: sparks for a hit, a bigger one for a sunk ship, a grey ripple for a miss, a lock-on ring while the result is unknown. */
+async function impact(cell: number, result: Result | null) {
+  if (stillMotion.matches) return;
+  const [x, y] = centre(cell);
+  const burst = fxShape(fx, "g", {
+    transform: `translate(${x} ${y})`,
+    class: result ? result.outcome : "lock",
+  });
+  const ring = (delay: number, to: number, duration = 600) =>
+    fxShape(burst, "circle", { r: "0.5", class: "ring" }).animate(
+      [{ transform: "scale(0.3)", opacity: 1 }, {
+        transform: `scale(${to})`,
+        opacity: 0,
+      }],
+      { duration, delay, easing: "ease-out", fill: "both" },
+    ).finished;
+  const done: Promise<unknown>[] = [];
+  if (!result) {
+    done.push(
+      fxShape(burst, "circle", { r: "0.5", class: "ring" }).animate(
+        [
+          { transform: "scale(1.6)", opacity: 0 },
+          { transform: "scale(0.9)", opacity: 1 },
+        ],
+        { duration: 300, easing: "ease-out" },
+      ).finished,
+    );
+  } else if (result.outcome === "miss") {
+    done.push(ring(0, 1.4), ring(180, 2));
+  } else {
+    const big = result.outcome === "sunk" ? 1.6 : 1;
+    done.push(
+      fxShape(burst, "circle", { r: "0.45", class: "flash" }).animate(
+        [{ transform: "scale(0.2)", opacity: 1 }, {
+          transform: `scale(${1.6 * big})`,
+          opacity: 0,
+        }],
+        { duration: 380, easing: "ease-out" },
+      ).finished,
+      ring(0, 2.2 * big),
+    );
+    if (big > 1) done.push(ring(160, 4, 800));
+    const sparks = fxShape(burst, "g", { class: "sparks" });
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + 0.3;
+      fxShape(sparks, "line", {
+        x1: `${Math.cos(a) * 0.25}`,
+        y1: `${Math.sin(a) * 0.25}`,
+        x2: `${Math.cos(a) * 0.55}`,
+        y2: `${Math.sin(a) * 0.55}`,
+      });
+    }
+    done.push(
+      sparks.animate(
+        [{ transform: "scale(0.6)", opacity: 1 }, {
+          transform: `scale(${2.4 * big})`,
+          opacity: 0,
+        }],
+        { duration: 520, easing: "cubic-bezier(0.2, 0.8, 0.3, 1)" },
+      ).finished,
+    );
+  }
+  await Promise.all(done);
+  burst.remove();
+}
+
+function showBig(enemy: boolean) {
+  bigEnemy = enemy;
+  render();
 }
 
 function paintSector(
@@ -425,25 +539,37 @@ async function awaitMove() {
     showing = undefined;
     session ??= m.session;
     log(`received ${describe(m)}`);
+    const before: Game = game;
+    const myShot = game.mine.at(-1);
     if (shot) {
       const next = receiveShot(game, shot.result, shot.cell);
-      note = describeTurn(
-        shot.result,
-        next.theirs.at(-1)!.result,
-        shot.cell,
-        game.fleet,
-      );
+      const theirs = next.theirs.at(-1)!.result;
+      note = describeTurn(shot.result, theirs, shot.cell, game.fleet);
+      showBig(false);
+      await launch(shot.cell, true);
+      if (game !== before) return;
       if (outcome(next) === "lost") {
         game = next;
         sendReveal();
       } else {
         moved(next);
       }
+      const played: Game | undefined = game;
+      showBig(false);
+      await impact(shot.cell, theirs);
+      await pause(350);
+      if (game !== played) return;
+      showBig(outcome(game) !== null || myTurn(game, role));
+      if (myShot && shot.result) await impact(myShot.cell, shot.result);
     } else if (revealedFleet) {
       theirFleet = revealedFleet;
       game = receiveReveal(game, revealedFleet);
       if (outcome(game) === "lost") moved(game);
       else sendReveal();
+      const landed = game.mine.at(-1);
+      if (myShot?.result === null && landed?.result) {
+        await impact(landed.cell, landed.result);
+      }
     }
   }
 }
@@ -550,18 +676,25 @@ $("back").onclick = () => {
   status();
 };
 
-fireButton.onclick = () => {
+fireButton.onclick = async () => {
   if (!game || session === undefined || selected === null) return;
+  const cell = selected;
   lastSent = {
     type: SHOT,
     seq: game.count % 4,
     session,
-    payload: encodeShot(lastResult(game), selected),
+    payload: encodeShot(lastResult(game), cell),
   };
   ping.disabled = false;
   note = undefined;
-  moved(shoot(game, selected));
+  moved(shoot(game, cell));
   transmit(lastSent);
+  const fired = game;
+  showBig(true);
+  await launch(cell, false);
+  await impact(cell, null);
+  await pause(250);
+  if (game === fired) showBig(outcome(game) !== null || myTurn(game, role));
 };
 
 small.onclick = () => {
