@@ -38,4 +38,8 @@ export class QrEncoder {
       textEncoder: textToBytes,
     });
   }
+
+  encodeText(text: string): QrMatrix {
+    return encodeQR(text, "raw", { ecc: this.#ecc });
+  }
 }

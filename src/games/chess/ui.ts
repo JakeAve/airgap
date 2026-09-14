@@ -170,6 +170,7 @@ function verdict(state: State, side: Side): string {
 }
 
 const chess: TurnGame<State> = {
+  id: "chess",
   initial: initialState,
   moveCount: (state) => state.messages,
   turn: (state) => turn(state) === "white" ? "host" : "guest",

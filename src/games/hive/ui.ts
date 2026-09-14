@@ -350,6 +350,7 @@ const described = new Map<string, string>();
 const payloadKey = (payload: Uint8Array) => Array.from(payload).join(",");
 
 const hive: TurnGame<State> = {
+  id: "swarm",
   initial: () => initialState(readOptions()),
   moveCount: (state) => state.moves,
   turn: (state) => turn(state),

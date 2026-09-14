@@ -20,3 +20,17 @@ export function accepts(
     ? moveCount === 0 && leg.session !== previous
     : leg.session === session;
 }
+
+/** The state after every move in order, or null when any move is illegal. */
+export function replay<S>(
+  game: { initial(): S; play(state: S, payload: Uint8Array): S | null },
+  moves: Uint8Array[],
+): S | null {
+  let state = game.initial();
+  for (const move of moves) {
+    const next = game.play(state, move);
+    if (next === null) return null;
+    state = next;
+  }
+  return state;
+}

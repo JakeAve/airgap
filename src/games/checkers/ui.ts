@@ -103,6 +103,7 @@ function render(state: State, role: Role) {
 }
 
 const checkers: TurnGame<State> = {
+  id: "checkers",
   initial: () => initialState(mustJump.checked),
   moveCount: (state) => state.moves,
   turn: (state) => turn(state) === "dark" ? "host" : "guest",

@@ -1,5 +1,6 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
 import encodeQR from "qr";
+import decodeQR from "qr/decode.js";
 import { QrEncoder } from "./qrEncoder.ts";
 import { QrDecoder } from "./qrDecoder.ts";
 import { QR_GUEST_COLORS, rasterize } from "./rasterize.ts";
@@ -96,4 +97,10 @@ Deno.test("encoder validates frame count and size", () => {
       ),
     RangeError,
   );
+});
+
+Deno.test("encodeText draws a link that decodes back to the same text", () => {
+  const url = "https://example.com/airgap/chess.html?role=guest#r=KgEC_-8";
+  const matrix = new QrEncoder().encodeText(url);
+  assertEquals(decodeQR(rasterize(matrix, 4, 4)), url);
 });
