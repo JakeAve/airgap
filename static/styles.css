@@ -405,6 +405,36 @@ a:hover {
   padding: 0.125rem 1rem 1rem;
 }
 
+/* Tabs */
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tabs button {
+  flex: 1;
+  color: var(--muted);
+}
+
+.tabs button[aria-selected="true"] {
+  border-color: var(--line-strong);
+  color: var(--fg);
+  background: var(--surface);
+}
+
+/* Saved games */
+
+.save {
+  padding: 0;
+  gap: 0;
+}
+
+.save-actions {
+  align-items: center;
+  padding: 0.125rem 1rem 1rem;
+}
+
 /* Facts */
 
 .facts {
