@@ -42,6 +42,7 @@ export interface Move {
 
 export const MAX_HEIGHT = 120;
 export const RIG_HEIGHT = 3;
+export const RIG_HALF_WIDTH = 2;
 const START_HP = 100;
 const START_AMMO = 2;
 const SPAWN_INSET = 16;
@@ -319,8 +320,9 @@ function fly(
     path.push({ x: col, y: row });
     for (const side of ["host", "guest"] as const) {
       const rig = rigs[side];
-      const inside = col === rig.column &&
-        row >= heights[col] && row < heights[col] + RIG_HEIGHT;
+      const base = heights[rig.column];
+      const inside = Math.abs(col - rig.column) <= RIG_HALF_WIDTH &&
+        row >= base && row < base + RIG_HEIGHT;
       if (side === shooter && !armed) {
         if (!inside) armed = true;
         continue;

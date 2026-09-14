@@ -10,6 +10,7 @@ import {
   outcome,
   play,
   reachable,
+  RIG_HALF_WIDTH,
   type State,
   turn,
 } from "./logic.ts";
@@ -124,11 +125,27 @@ Deno.test("a rig falls into a crater dug under it", () => {
   let hit: State | null = null;
   for (let power = 50; power <= 100 && !hit; power++) {
     const next = play(state, { ...shot, power })!;
-    if (next.lastShot!.blasts[0]?.x === state.rigs.guest.column) hit = next;
+    const blast = next.lastShot!.blasts[0];
+    if (
+      blast && Math.abs(blast.x - state.rigs.guest.column) <= RIG_HALF_WIDTH
+    ) {
+      hit = next;
+    }
   }
   assert(hit, "some power lands on the guest");
   assert(hit.rigs.guest.hp < 100);
   assert(hit.heights[hit.rigs.guest.column] < before);
+});
+
+Deno.test("a shot through a rig's side columns hits the rig above the ground", () => {
+  const state = flat();
+  const guest = state.rigs.guest.column;
+  const next = play(state, { ...shot, power: 82 })!;
+  const [blast] = next.lastShot!.blasts;
+  assert(blast.x !== guest);
+  assert(Math.abs(blast.x - guest) <= RIG_HALF_WIDTH);
+  assert(blast.y >= state.heights[blast.x]);
+  assert(next.rigs.guest.hp < 100);
 });
 
 Deno.test("a shot straight up comes down on its own rig", () => {
@@ -179,8 +196,8 @@ Deno.test("the checksum follows the state", () => {
 });
 
 Deno.test("the golden replay matches its recorded checksum and HP", () => {
-  assertEquals(goldenChecksum(), 208);
+  assertEquals(goldenChecksum(), 227);
   const state = goldenState();
   assertEquals(state.rigs.host.hp, 100);
-  assertEquals(state.rigs.guest.hp, 29);
+  assertEquals(state.rigs.guest.hp, 28);
 });

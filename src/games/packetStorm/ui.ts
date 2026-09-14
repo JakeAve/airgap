@@ -12,6 +12,7 @@ import {
   outcome,
   play,
   reachable,
+  RIG_HALF_WIDTH,
   RIG_HEIGHT,
   type Side,
   type State,
@@ -25,7 +26,6 @@ const VIEW_HEIGHT = 128;
 const BLOCK = 4;
 const MS_PER_TICK = 8;
 const BLAST_MS = 450;
-const RIG_HALF_WIDTH = 2;
 const BARREL = 5;
 const POWER_PER_UNIT = 2;
 
@@ -258,8 +258,13 @@ function render(state: State, role: Role) {
     angleInput.value = role === "host" ? "45" : "135";
   }
   view = role;
+  if (state.moves === 0) desync.hidden = true;
   if (state !== shown) {
-    before = shown?.moves === state.moves - 1 ? shown : undefined;
+    before = state.moves === 1
+      ? initialState(state.seed)
+      : shown?.moves === state.moves - 1
+      ? shown
+      : undefined;
     shown = state;
     dx = 0;
     animationStart = performance.now();
