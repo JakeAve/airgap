@@ -430,6 +430,10 @@ a:hover {
   gap: 0;
 }
 
+.save .link-card {
+  display: flex;
+}
+
 .save-actions {
   align-items: center;
   padding: 0.125rem 1rem 1rem;

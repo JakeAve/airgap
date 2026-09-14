@@ -77,18 +77,17 @@ Deno.test("putSave evicts the least recently played save beyond 3 per game", () 
   assertEquals(getSave(storage, saves[0].id), undefined);
 });
 
-Deno.test("putSave replaces an existing save by game+session", () => {
+Deno.test("putSave keeps a different id with the same game+session as a separate save", () => {
   const storage = fakeStorage();
   const a = save({ session: 5, playedAt: 1, count: 1 });
   putSave(storage, a);
 
-  const newer = save({ id: newSaveId(), session: 5, playedAt: 2, count: 2 });
-  putSave(storage, newer);
+  const other = save({ id: newSaveId(), session: 5, playedAt: 2, count: 2 });
+  putSave(storage, other);
 
   const all = listSaves(storage);
-  assertEquals(all.length, 1);
-  assertEquals(all[0].id, newer.id);
-  assertEquals(all[0].count, 2);
+  assertEquals(all.length, 2);
+  assertEquals(all.map((s) => s.id).sort(), [a.id, other.id].sort());
 });
 
 Deno.test("encodeShare/decodeShare round trip flips the role", () => {

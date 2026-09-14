@@ -15,6 +15,7 @@ import {
   GAME_PAGES,
   type GameId,
   getSave,
+  listSaves,
   newSaveId,
   putSave,
   type Save,
@@ -67,6 +68,15 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   if (shared) {
     const imported = decodeShare(game.id, shared[1]);
     if (imported) {
+      for (const existing of listSaves(localStorage)) {
+        if (
+          existing.game === imported.game &&
+          existing.session === imported.session &&
+          existing.role === imported.role
+        ) {
+          deleteSave(localStorage, existing.id);
+        }
+      }
       const id = newSaveId();
       putSave(localStorage, { ...imported, id, playedAt: Date.now() });
       params.set("role", imported.role);
@@ -452,7 +462,10 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
       };
       ping.disabled = false;
     }
-    log(`resumed ${playing()} after ${found.count} moves, session ${session}`);
+    const moveWord = found.count === 1 ? "move" : "moves";
+    log(
+      `resumed ${playing()} after ${found.count} ${moveWord}, session ${session}`,
+    );
     return true;
   }
 

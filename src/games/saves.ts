@@ -58,14 +58,9 @@ export function getSave(storage: SaveStorage, id: string): Save | undefined {
 export function putSave(storage: SaveStorage, save: Save): void {
   const saves = readAll(storage);
   const byId = saves.findIndex((s) => s.id === save.id);
-  const bySession = byId !== -1
-    ? byId
-    : saves.findIndex((s) =>
-      s.game === save.game && s.session === save.session
-    );
 
-  if (bySession !== -1) {
-    saves[bySession] = save;
+  if (byId !== -1) {
+    saves[byId] = save;
   } else {
     saves.push(save);
   }

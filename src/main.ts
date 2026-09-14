@@ -118,9 +118,27 @@ function saveCard(save: Save) {
       </a>
       <div class="row save-actions">
         <button type="button" data-delete="${save.id}">${deleteLabel}</button>
-        <a href="./restore.html">Resume with QR</a>
       </div>
     </div>`;
+}
+
+function resumeWithQrCard() {
+  return `
+    <a href="./restore.html" class="card link-card">
+      <span class="icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+          <path d="M14 14h3v3h-3zM20 14v3M17 20h3"></path>
+        </svg>
+      </span>
+      <span class="text">
+        <strong>Resume with QR</strong>
+        <small>Scan the other phone's Share game code</small>
+      </span>
+      ${CHEVRON}
+    </a>`;
 }
 
 function newGamePanel() {
@@ -153,11 +171,14 @@ function resumePanel() {
   const saves = listSaves(localStorage);
   if (saves.length === 0) {
     return `
+      ${resumeWithQrCard()}
       <div class="card dashed">
         <p class="muted">Games in progress appear here.</p>
       </div>`;
   }
-  return saves.map(saveCard).join("");
+  return `
+    ${resumeWithQrCard()}
+    ${saves.map(saveCard).join("")}`;
 }
 
 function tabsBar() {
