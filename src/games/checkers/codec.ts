@@ -1,6 +1,8 @@
-// Wire layout: hop count 4 | jump 1 | from 5 | dir 2 × count. The jump bit is
-// per move, not per hop, because a multi-jump's hops are always the same
-// distance (a man or king cannot mix steps and jumps in one move).
+// Wire layout: hop count 4 | jump 1 | from 5 | dir 2 × count, then on the
+// game's first move one free-jumps bit carrying the host's rule. The jump bit
+// is per move, not per hop, because a multi-jump's hops are always the same
+// distance (a man or king cannot mix steps and jumps in one move). The rule bit
+// is inverted so zero padding reads as the default, must jump.
 
 import { BitReader, BitWriter } from "@/lib/bits/mod.ts";
 import { direction, hop } from "./logic.ts";
@@ -9,9 +11,11 @@ const HOP_COUNT_BITS = 4;
 const JUMP_BITS = 1;
 const FROM_BITS = 5;
 const DIR_BITS = 2;
+const FREE_JUMPS_BITS = 1;
 const MAX_HOPS = 2 ** HOP_COUNT_BITS - 1;
 
-export function encodeMove(path: number[]): Uint8Array {
+/** Pass mustJump only on the game's first move. */
+export function encodeMove(path: number[], mustJump?: boolean): Uint8Array {
   const hops = path.length - 1;
   if (hops < 1 || hops > MAX_HOPS) {
     throw new RangeError(`path must have 1..${MAX_HOPS} hops, got ${hops}`);
@@ -36,11 +40,17 @@ export function encodeMove(path: number[]): Uint8Array {
     .write(distance === 2 ? 1 : 0, JUMP_BITS)
     .write(path[0], FROM_BITS);
   for (const dir of dirs) writer.write(dir, DIR_BITS);
+  if (mustJump !== undefined) writer.write(mustJump ? 0 : 1, FREE_JUMPS_BITS);
   return writer.bytes();
 }
 
-/** The path of squares, or null when the count is 0, a square is off the board, or the payload is too short. */
-export function decodeMove(payload: Uint8Array): number[] | null {
+/**
+ * The path of squares and the rule bit (meaningful only on the first move), or
+ * null when the count is 0, a square is off the board, or the payload is too short.
+ */
+export function decodeMove(
+  payload: Uint8Array,
+): { path: number[]; mustJump: boolean } | null {
   const reader = new BitReader(payload);
   if (reader.remaining < HOP_COUNT_BITS) return null;
   const hops = reader.read(HOP_COUNT_BITS);
@@ -53,5 +63,7 @@ export function decodeMove(payload: Uint8Array): number[] | null {
     if (next === null) return null;
     path.push(next);
   }
-  return path;
+  const mustJump = reader.remaining < FREE_JUMPS_BITS ||
+    reader.read(FREE_JUMPS_BITS) === 0;
+  return { path, mustJump };
 }

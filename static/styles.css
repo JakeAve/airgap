@@ -1508,6 +1508,11 @@ button:has(.sector.small) {
   color: var(--fg);
 }
 
+.rules .options {
+  display: grid;
+  gap: 0.25rem;
+}
+
 label.check {
   flex-direction: row;
   align-items: center;

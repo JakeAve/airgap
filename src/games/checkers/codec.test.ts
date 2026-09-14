@@ -8,7 +8,7 @@ const leg = { type: 0, seq: 0, session: 1 };
 Deno.test("a one-hop step encodes to 2 bytes", () => {
   const payload = encodeMove([0, 4]);
   assertEquals(payload.length, 2);
-  assertEquals(decodeMove(payload), [0, 4]);
+  assertEquals(decodeMove(payload)?.path, [0, 4]);
 });
 
 Deno.test("a three-jump path survives framing padding", () => {
@@ -17,7 +17,15 @@ Deno.test("a three-jump path survives framing padding", () => {
   const r = new Reassembler();
   let last;
   for (const f of frames) last = r.push(f);
-  assertEquals(decodeMove(last!.message!.payload), path);
+  assertEquals(decodeMove(last!.message!.payload)?.path, path);
+});
+
+Deno.test("the first move carries the must-jump rule, and padding reads as must jump", () => {
+  assertEquals(decodeMove(encodeMove([0, 4]))?.mustJump, true);
+  assertEquals(decodeMove(encodeMove([0, 4], true))?.mustJump, true);
+  const free = encodeMove([0, 4], false);
+  assertEquals(free.length, 2);
+  assertEquals(decodeMove(free)?.mustJump, false);
 });
 
 Deno.test("decodeMove rejects an empty payload, a zero count, and a direction off the board", () => {

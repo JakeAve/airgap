@@ -17,7 +17,6 @@ const SIDE_LENGTH = 8;
 const sideOf = (role: Role): Side => role === "host" ? "dark" : "light";
 
 const boardEl = document.getElementById("board") as HTMLElement;
-const rules = document.getElementById("rules") as HTMLElement;
 const mustJump = document.getElementById("mustjump") as HTMLInputElement;
 const RULES_KEY = "airgap.checkers";
 mustJump.checked =
@@ -101,7 +100,6 @@ function render(state: State, role: Role) {
   });
   const over = outcome(state) !== null;
   boardEl.classList.toggle("over", over);
-  rules.hidden = state.moves > 0 && !over;
 }
 
 const checkers: TurnGame<State> = {
@@ -111,10 +109,15 @@ const checkers: TurnGame<State> = {
   over: (state) => outcome(state) !== null,
   play(state, payload) {
     const decoded = decodeMove(payload);
-    const move = decoded && findMove(state, decoded);
-    return move ? apply(state, move) : null;
+    if (decoded === null) return null;
+    const base = state.moves === 0 ? initialState(decoded.mustJump) : state;
+    const move = findMove(base, decoded.path);
+    if (move === null) return null;
+    if (state.moves === 0) mustJump.checked = decoded.mustJump;
+    return apply(base, move);
   },
-  describe: (payload) => `move ${decodeMove(payload)?.join("-") ?? "unknown"}`,
+  describe: (payload) =>
+    `move ${decodeMove(payload)?.path.join("-") ?? "unknown"}`,
   render,
   result(state, role) {
     const winner = outcome(state);
@@ -138,7 +141,9 @@ function tap(square: number) {
   } else if (nextSquares(state).has(square)) {
     path = [...path, square];
     if (findMove(state, path)) {
-      page.move(encodeMove(path));
+      page.move(
+        encodeMove(path, state.moves === 0 ? state.mustJump : undefined),
+      );
       path = [];
     }
   } else {
