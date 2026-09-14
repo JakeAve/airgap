@@ -7,7 +7,8 @@
     "pre-push": "deno task check && deno task test",
     "build": "deno run -A scripts/build.ts",
     "dev": "deno run -A scripts/dev.ts",
-    "e2e": "deno task build && deno run -A scripts/e2e/diag.ts"
+    "e2e": "deno task build && deno run -A scripts/e2e/diag.ts",
+    "determinism": "deno run -A scripts/determinism.ts"
   },
   "imports": {
     "@/": "./src/",
