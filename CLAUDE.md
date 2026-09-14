@@ -105,15 +105,17 @@ delete the branch.
   placement, two 10×10 sectors, and the end-of-game reveal; `chess/` is the
   board, full FIDE movement, check, and every draw; `hive/` is Swarm, a Hive
   game on a hex grid: stacks, per-piece moves, Crane throws, and the
-  surrounded-Motherboard win
+  surrounded-Motherboard win; `packetStorm/` is artillery on a destructible
+  ridge: integer-only flight, craters, wind, and a per-move checksum
 - `src/games/turn.ts` + `src/games/turnPage.ts` — the shared turn-game page:
   `turn.ts` has the `Role` type and the no-handshake accept rule, `turnPage.ts`
   has the DOM plumbing (settings menu, log, QR/sound transmit, receive loop)
-  tic-tac-toe, checkers, chess, and Swarm mount
+  tic-tac-toe, checkers, chess, Swarm, and Packet Storm mount
 - `src/games/ticTacToe/ui.ts` + `static/tictactoe.html`,
   `src/games/checkers/ui.ts` + `static/checkers.html`, `src/games/chess/ui.ts` +
-  `static/chess.html`, and `src/games/hive/ui.ts` + `static/swarm.html` — each
-  game's board and screen, all mounting the shared page from `turnPage.ts`
+  `static/chess.html`, `src/games/hive/ui.ts` + `static/swarm.html`, and
+  `src/games/packetStorm/ui.ts` + `static/packetstorm.html` — each game's board
+  and screen, all mounting the shared page from `turnPage.ts`
 - `src/games/spaceships/ui.ts` + `static/spaceships.html` — spaceships' screen
   on the same viewfinder layout, with its own page plumbing because it sends a
   second message type (the reveal) and has a placement phase before Start

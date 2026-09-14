@@ -1637,3 +1637,156 @@ label.check {
   margin: 0;
   accent-color: var(--tx);
 }
+
+/* Packet Storm: the ridge is one canvas in a 5:4 card, with the HP bars and
+   wind above it and the aim controls below. The rigs and bars read --x/--o so
+   each side keeps its colour on both phones. */
+.vf-middle:has(.board.storm) {
+  overflow-y: auto;
+  justify-content: safe center;
+  gap: 1rem;
+}
+
+.board.storm {
+  display: block;
+  align-self: stretch;
+  width: auto;
+  height: auto;
+  aspect-ratio: 5 / 4;
+  padding: 0;
+  overflow: hidden;
+}
+
+.storm-field {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.board.storm .board-code {
+  left: 50%;
+  right: auto;
+  width: auto;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+}
+
+.storm-waiting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+}
+
+.storm-hud {
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem;
+  align-items: end;
+}
+
+.storm-hp,
+.storm-wind {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.storm-hp.o {
+  justify-items: end;
+}
+
+.storm-wind {
+  justify-items: center;
+}
+
+.storm-hp.x {
+  --mark: var(--x);
+}
+
+.storm-hp.o {
+  --mark: var(--o);
+}
+
+.storm-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.storm-bar i {
+  display: block;
+  width: var(--hp, 100%);
+  height: 100%;
+  background: var(--mark);
+  transition: width 400ms ease;
+}
+
+.storm-hp.o .storm-bar i {
+  margin-left: auto;
+}
+
+.storm-aim {
+  align-self: stretch;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.storm-weapons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.storm-weapons button {
+  padding: 0 0.25rem;
+  font-size: 12px;
+}
+
+.storm-weapons button[aria-pressed="true"] {
+  border-color: var(--me);
+  color: var(--me);
+}
+
+.storm-slider > span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.storm-slider strong {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.storm-slider input {
+  width: 100%;
+  min-height: 32px;
+  padding: 0;
+  background: none;
+  border: 0;
+  accent-color: var(--me);
+}
+
+.storm-move {
+  display: grid;
+  grid-template-columns: auto 1fr auto 2fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.storm-move #move-value {
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storm-bar i {
+    transition: none;
+  }
+}
+
+.storm-aim #ping {
+  justify-self: start;
+}

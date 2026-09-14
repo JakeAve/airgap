@@ -5,7 +5,8 @@ export type GameId =
   | "checkers"
   | "chess"
   | "spaceships"
-  | "swarm";
+  | "swarm"
+  | "packetstorm";
 
 export const GAME_PAGES: Record<GameId, string> = {
   tictactoe: "./tictactoe.html",
@@ -13,6 +14,7 @@ export const GAME_PAGES: Record<GameId, string> = {
   chess: "./chess.html",
   spaceships: "./spaceships.html",
   swarm: "./swarm.html",
+  packetstorm: "./packetstorm.html",
 };
 
 export const MAX_SAVES_PER_GAME = 3;
