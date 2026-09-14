@@ -47,15 +47,17 @@ export class Camera {
   /**
    * Calls `onImage` with a downscaled RGBA copy of each new video frame,
    * waiting for the previous call to finish so decoding never backs up.
+   * `maxEdge` caps the longer side in pixels; denser codes need a larger one.
    */
   async scan(
     onImage: (image: RgbaImage) => Promise<void>,
     signal: AbortSignal,
+    maxEdge: number = MAX_SCAN_EDGE,
   ): Promise<void> {
     while (!signal.aborted) {
       await this.#nextFrame();
       if (signal.aborted) break;
-      const image = this.#grab();
+      const image = this.#grab(maxEdge);
       if (image) await onImage(image);
     }
   }
@@ -69,12 +71,12 @@ export class Camera {
     });
   }
 
-  #grab(): RgbaImage | null {
+  #grab(maxEdge: number): RgbaImage | null {
     const { videoWidth, videoHeight } = this.#video;
     if (!videoWidth || !videoHeight) return null;
     const scale = Math.min(
       1,
-      MAX_SCAN_EDGE / Math.max(videoWidth, videoHeight),
+      maxEdge / Math.max(videoWidth, videoHeight),
     );
     const width = Math.round(videoWidth * scale);
     const height = Math.round(videoHeight * scale);

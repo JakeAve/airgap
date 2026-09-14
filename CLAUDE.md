@@ -61,6 +61,15 @@ delete the branch.
 - `src/handshake.ts` + `static/handshake.html` — the exchange screen: one
   call/reply/ack round over sound, QR, or both, every setting a URL parameter
   (`role`, `via`, `text`, `protocol`, `turnaround`, `guard`, `retries`, `next`)
+- `src/games/saves.ts` — the saves store in `localStorage`: list/get/put/delete,
+  eviction past `MAX_SAVES_PER_GAME`, the share-hash codec (`encodeShare` /
+  `decodeShare`), and `gameLink`, which accepts a scanned URL only if it is same
+  origin, same directory, a known game page, and carries a decodable `#r=` hash
+- `src/restore.ts` + `static/restore.html` — the resume-with-QR page: opens the
+  rear camera on a tap and decodes on the main thread (no codec worker, since it
+  reads a plain link, not a wire-protocol frame), navigating on the first
+  `gameLink`-accepted code and otherwise showing "not an Airgap game" while
+  scanning continues
 - `src/codecWorker.ts` — Web Worker hosting ggwave (sound encode + decode) and
   the QR decoder; bundled to `dist/codec-worker.js`
 - `src/captureWorklet.ts` — AudioWorklet that forwards microphone samples in
@@ -146,6 +155,10 @@ care which delivered them.
 - Turn games skip the handshake: the opponent's next move is the only
   confirmation a turn needs, so a lost move gets a Ping button (send it again)
   instead of the handshake's windows and retries.
+- Every turn game saves itself after each move to `localStorage` (`saves.ts`)
+  and offers the save's other player role encoded in a QR share hash (`#r=...`),
+  so the second device can resume by scanning it on `restore.html` instead of
+  replaying the handshake.
 
 ## Wire-protocol facts worth remembering
 

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <title>Airgap resume</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header compact">
+      <h1><a href="./">Airgap</a><span class="label rx">Resume with QR</span></h1>
+      <p
+        class="tagline">Open Share game on the other phone and point this camera at it.</p>
+    </header>
+    <main class="stack">
+      <section class="card rx">
+        <div class="card-head">
+          <h2>Scan</h2>
+          <span class="mono muted">rx</span>
+        </div>
+        <div class="row">
+          <button id="scan" class="rx">Turn on camera</button>
+        </div>
+        <div class="readout">
+          <p id="status" class="status">idle</p>
+        </div>
+        <video id="camera" class="camera" hidden></video>
+      </section>
+      <p class="row"><a href="./index.html">← Back to Airgap</a></p>
+    </main>
+    <script type="module" src="./restore.js"></script>
+  </body>
+</html>
