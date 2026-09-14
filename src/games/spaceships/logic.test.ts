@@ -6,7 +6,9 @@ import {
   awaitedCounts,
   canPlace,
   cells,
+  clampPlacement,
   fire,
+  firstFit,
   type Fleet,
   type Game,
   isLegalShot,
@@ -65,6 +67,32 @@ Deno.test("canPlace rejects overlaps but allows a neighbouring row", () => {
   assertEquals(canPlace(fleet, 1, { bow: 4, vertical: true }), false);
   assertEquals(canPlace(fleet, 1, { bow: 10, vertical: false }), true);
   assertEquals(canPlace(fleet, 0, MINE[0]), true);
+});
+
+Deno.test("clampPlacement slides a ship back onto the grid along its axis", () => {
+  assertEquals(clampPlacement(0, { bow: 17, vertical: false }), {
+    bow: 15,
+    vertical: false,
+  });
+  assertEquals(clampPlacement(0, { bow: 87, vertical: true }), {
+    bow: 57,
+    vertical: true,
+  });
+  assertEquals(clampPlacement(4, { bow: 33, vertical: true }), {
+    bow: 33,
+    vertical: true,
+  });
+});
+
+Deno.test("firstFit takes the first open spot in reading order", () => {
+  assertEquals(firstFit([null, null, null, null, null], 0), {
+    bow: 0,
+    vertical: false,
+  });
+  assertEquals(firstFit([MINE[0], null, null, null, null], 1), {
+    bow: 5,
+    vertical: false,
+  });
 });
 
 Deno.test("randomFleet places every ship legally", () => {

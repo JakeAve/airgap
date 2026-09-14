@@ -1276,6 +1276,7 @@ symbol .solid {
   --size: max(240px, min(100vw - 2rem, 100dvh - 24rem, 36rem));
   --owner: var(--me);
   --owner-rgb: var(--me-rgb);
+  --owner-core: var(--me-core);
   --shooter: var(--them);
   --shooter-rgb: var(--them-rgb);
   --shooter-core: var(--them-core);
@@ -1314,6 +1315,7 @@ symbol .solid {
 .sector.enemy {
   --owner: var(--them);
   --owner-rgb: var(--them-rgb);
+  --owner-core: var(--them-core);
   --shooter: var(--me);
   --shooter-rgb: var(--me-rgb);
   --shooter-core: var(--me-core);
@@ -1365,30 +1367,69 @@ button:has(.sector.small) {
   animation: damage 500ms ease-out both;
 }
 
-.chips {
+.hull .pending {
+  stroke: var(--owner-core);
+  filter: drop-shadow(0 0 6px rgba(var(--owner-rgb), 0.9));
+}
+
+.hull:has(.pending) g:not(.pending) {
+  opacity: 0.5;
+}
+
+.placing {
+  display: grid;
+  gap: 0.75rem;
+  width: max(240px, min(100vw - 2rem, 36rem));
+}
+
+.placing-head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
-.chip {
-  gap: 0.375rem;
-  padding: 0 0.75rem;
-  font-size: 12px;
+.placing-head .label {
+  font-size: 14px;
+  margin-right: 0.5rem;
 }
 
-.chip .mono {
+.placing-head .mono:not(.muted) {
   font-size: 11px;
   color: var(--dim);
 }
 
-.chip.placed {
-  opacity: 0.45;
+.pips {
+  display: flex;
+  gap: 4px;
 }
 
-.chip.picked {
-  border-color: var(--me);
-  color: var(--me);
+.pips span {
+  width: 18px;
+  height: 3px;
+  background: var(--line-strong);
+}
+
+.pips .done {
+  background: rgba(var(--me-rgb), 0.5);
+}
+
+.pips .current {
+  background: var(--me);
+}
+
+.placing-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+.placing-controls button {
+  padding: 0 0.5rem;
+}
+
+#randomize {
+  justify-self: center;
 }
 
 @keyframes damage {

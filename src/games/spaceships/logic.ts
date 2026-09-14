@@ -50,6 +50,29 @@ export function canPlace(
   );
 }
 
+/** Slides a placement along its own axis until the whole ship is on the grid. */
+export function clampPlacement(ship: number, p: Placement): Placement {
+  const length = SHIPS[ship].length;
+  const row = Math.floor(p.bow / GRID);
+  const col = p.bow % GRID;
+  return p.vertical
+    ? { bow: Math.min(row, GRID - length) * GRID + col, vertical: true }
+    : { bow: row * GRID + Math.min(col, GRID - length), vertical: false };
+}
+
+/** The first open spot in reading order, horizontal before vertical. */
+export function firstFit(
+  fleet: (Placement | null)[],
+  ship: number,
+): Placement | null {
+  for (let bow = 0; bow < CELLS; bow++) {
+    for (const vertical of [false, true]) {
+      if (canPlace(fleet, ship, { bow, vertical })) return { bow, vertical };
+    }
+  }
+  return null;
+}
+
 export function randomFleet(random: () => number = Math.random): Fleet {
   const fleet: (Placement | null)[] = new Array(SHIPS.length).fill(null);
   for (let ship = 0; ship < SHIPS.length; ship++) {
