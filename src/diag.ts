@@ -6,6 +6,7 @@ import { decodeText, encodeText } from "@/games/diag/codec.ts";
 import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
 import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
 import { drawQr } from "@/adapters/screen.ts";
+import { startApp } from "@/adapters/app.ts";
 import {
   newSessionId,
   openLink,
@@ -223,3 +224,4 @@ button("receive-both").onclick = () => receive(["sound", "qr"]);
 button("receive-stop").onclick = () => receiving?.abort();
 for (const id of ["send-text", "send-protocol"]) $(id).oninput = updateSend;
 updateSend();
+startApp({ home: false });

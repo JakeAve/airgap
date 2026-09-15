@@ -1,3 +1,4 @@
+import { startApp } from "@/adapters/app.ts";
 import {
   deleteSave,
   GAME_PAGES,
@@ -253,16 +254,9 @@ function handleClick(event: MouseEvent) {
   }
 }
 
-function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("./sw.js").catch((err) => {
-    console.error("service worker registration failed", err);
-  });
-}
-
 document.querySelector<HTMLElement>("#app")?.addEventListener(
   "click",
   handleClick,
 );
 render();
-registerServiceWorker();
+startApp({ home: true });

@@ -7,6 +7,7 @@ import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
 import { QrEncoder, type QrMatrix } from "@/lib/transports/qr/qrEncoder.ts";
 import { QR_COLORS, QR_GUEST_COLORS } from "@/lib/transports/qr/rasterize.ts";
 import { drawQr } from "@/adapters/screen.ts";
+import { startApp } from "@/adapters/app.ts";
 import { newSessionId, openLink, type PageLink } from "@/adapters/pageLink.ts";
 import {
   decodeShare,
@@ -54,6 +55,7 @@ export interface TurnPage<S> {
 const SETTINGS_KEY = "airgap.settings";
 
 export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
+  startApp({ home: false });
   const $ = <T extends HTMLElement>(id: string) =>
     document.getElementById(id) as T;
 

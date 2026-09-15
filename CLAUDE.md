@@ -83,7 +83,11 @@ delete the branch.
 - `src/adapters/` — the only browser-API code: `codecWorker.ts` (page-side
   handle), `speaker.ts`, `microphone.ts`, `screen.ts`, `camera.ts`,
   `soundTransport.ts` / `qrTransport.ts` implementing `Transport`, and
-  `pageLink.ts` building the worker and both transports for a page
+  `pageLink.ts` building the worker and both transports for a page, and `app.ts`
+  whose `startApp` every page calls: registers the service worker, shows the
+  one-time offline toast, applies waiting updates from the home page only,
+  requests persistent storage when installed, and holds a screen wake lock on
+  every other page
 - `src/lib/` — pure, tested modules shared by every game
   - `protocol.ts` — wire protocol constants (frame layout, limits)
   - `bits/` — `BitWriter`, `BitReader`, `crc8`

@@ -1870,3 +1870,33 @@ label.check {
 .storm-move #fire {
   flex: 1.5;
 }
+
+/* Above the viewfinder's header and camera; never takes a tap. */
+.toast {
+  position: fixed;
+  z-index: 30;
+  top: calc(env(safe-area-inset-top) + 1rem);
+  left: 50%;
+  translate: -50% 0;
+  padding: 0.5rem 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  color: var(--fg);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: toast-in 200ms ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: -50% -0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
