@@ -31,7 +31,7 @@ deno task check        # fmt check + lint + type check
 deno task test         # unit tests
 deno task pre-commit   # check + test (also run by .githooks/pre-commit)
 deno task pre-push     # check + test (also run by .githooks/pre-push)
-deno task e2e          # build, then drive diag.html and handshake.html in headless Chromium with fake devices
+deno task e2e          # build, then drive diag.html and handshake.html in headless Chromium with fake devices, then confirm every page loads offline from the service worker
 deno task determinism  # bundle a game's logic and run its golden checksum in Chromium, Firefox, and WebKit
 ```
 
@@ -125,7 +125,9 @@ delete the branch.
   on the same viewfinder layout, with its own page plumbing because it sends a
   second message type (the reveal) and has a placement phase before Start
 - `scripts/` — Deno scripts (`build.ts`, `dev.ts` with optional HTTPS from
-  `.certs/`, `e2e/` Playwright run against fake devices)
+  `.certs/`, `e2e/` Playwright run against fake devices plus `offline.ts`, which
+  serves `dist/` and drives every page in headless Chromium with the network off
+  to prove the service worker covers it)
 - `types/` — hand-written declarations for untyped npm packages
 - `.githooks/` — pre-commit and pre-push; enabled by `deno task setup`
 - `.github/workflows/` — `ci.yml` (check, test, build on every push) and
