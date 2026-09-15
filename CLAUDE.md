@@ -55,7 +55,8 @@ delete the branch.
 ## Directory Map
 
 - `static/` — copied verbatim into `dist/`: `index.html`, `styles.css`,
-  `manifest.webmanifest`, `icons/`
+  `manifest.webmanifest`, `icons/`, `fonts/` (self-hosted Silkscreen, Space
+  Grotesk, and JetBrains Mono woff2s plus each family's `OFL-*.txt` license)
 - `src/main.ts` — app entry; bundled to `dist/main.js`
 - `src/sw.ts` — service worker; bundled to `dist/sw.js`. `__BUILD_ID__` is
   replaced at build time so each build gets its own cache.
