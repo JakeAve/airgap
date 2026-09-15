@@ -730,7 +730,7 @@ body.viewfinder.guest {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  min-height: 56px;
+  min-height: 44px;
   padding: 0 1rem;
   background: rgba(10, 10, 11, 0.8);
 }
@@ -1599,8 +1599,8 @@ button:has(.sector.small) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   list-style: none;
   border: 1px solid rgba(var(--tx-rgb), 0.7);
   border-radius: 2px;
@@ -1609,6 +1609,11 @@ button:has(.sector.small) {
     0 0 14px rgba(var(--tx-rgb), 0.25),
     inset 0 0 14px rgba(var(--tx-rgb), 0.12);
   cursor: pointer;
+}
+
+.vf-gear svg {
+  width: 16px;
+  height: 16px;
 }
 
 .vf-gear::-webkit-details-marker {
@@ -1622,7 +1627,7 @@ button:has(.sector.small) {
 
 .vf-settings {
   position: fixed;
-  inset: 56px 1rem auto auto;
+  inset: 44px 1rem auto auto;
   gap: 0.25rem;
   color: var(--fg);
 }
