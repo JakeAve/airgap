@@ -101,6 +101,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   const ping = $<HTMLButtonElement>("ping");
   const start = $<HTMLButtonElement>("start");
   const share = $<HTMLButtonElement>("share");
+  const shareCaption = $<HTMLElement>("share-caption");
   /** The host's rule checkboxes, if the game has any: only shown while the host is setting up. */
   const options = document.getElementById("options");
   const qrEncoder = new QrEncoder();
@@ -183,6 +184,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
       (showing && qrcode.checked && !codeDismissed
         ? qrEncoder.encode(buildFrames(showing))
         : undefined);
+    shareCaption.hidden = !sharing;
     if (matrix) {
       drawQr(matrix, code, qrColors);
       code.hidden = false;
