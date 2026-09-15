@@ -31,7 +31,7 @@ deno task check        # fmt check + lint + type check
 deno task test         # unit tests
 deno task pre-commit   # check + test (also run by .githooks/pre-commit)
 deno task pre-push     # check + test (also run by .githooks/pre-push)
-deno task e2e          # build, then drive diag.html and handshake.html in headless Chromium with fake devices
+deno task e2e          # build, then drive diag.html and handshake.html in headless Chromium with fake devices, then confirm every page loads offline from the service worker
 deno task determinism  # bundle a game's logic and run its golden checksum in Chromium, Firefox, and WebKit
 ```
 
@@ -55,10 +55,15 @@ delete the branch.
 ## Directory Map
 
 - `static/` — copied verbatim into `dist/`: `index.html`, `styles.css`,
-  `manifest.webmanifest`, `icons/`
+  `manifest.webmanifest`, `icons/`, `screenshots/` (manifest screenshots),
+  `fonts/` (self-hosted Silkscreen, Space Grotesk, and JetBrains Mono woff2s
+  plus each family's `OFL-*.txt` license)
 - `src/main.ts` — app entry; bundled to `dist/main.js`
 - `src/sw.ts` — service worker; bundled to `dist/sw.js`. `__BUILD_ID__` is
-  replaced at build time so each build gets its own cache.
+  replaced at build time so each build gets its own cache, and `__APP_SHELL__`
+  with every built file (minus sourcemaps and dotfiles); it serves cache-first
+  and only skips waiting when asked from the home page with at most one Airgap
+  window open.
 - `src/diag.ts` + `static/diag.html` — diagnostics page: send and receive a test
   message over either transport, with timing log; its handshake form is a GET to
   the exchange screen
@@ -83,7 +88,11 @@ delete the branch.
 - `src/adapters/` — the only browser-API code: `codecWorker.ts` (page-side
   handle), `speaker.ts`, `microphone.ts`, `screen.ts`, `camera.ts`,
   `soundTransport.ts` / `qrTransport.ts` implementing `Transport`, and
-  `pageLink.ts` building the worker and both transports for a page
+  `pageLink.ts` building the worker and both transports for a page, and `app.ts`
+  whose `startApp` every page calls: registers the service worker, shows the
+  one-time offline toast, applies waiting updates from the home page only,
+  requests persistent storage when installed, and holds a screen wake lock on
+  every other page
 - `src/lib/` — pure, tested modules shared by every game
   - `protocol.ts` — wire protocol constants (frame layout, limits)
   - `bits/` — `BitWriter`, `BitReader`, `crc8`
@@ -120,7 +129,9 @@ delete the branch.
   on the same viewfinder layout, with its own page plumbing because it sends a
   second message type (the reveal) and has a placement phase before Start
 - `scripts/` — Deno scripts (`build.ts`, `dev.ts` with optional HTTPS from
-  `.certs/`, `e2e/` Playwright run against fake devices)
+  `.certs/`, `e2e/` Playwright run against fake devices plus `offline.ts`, which
+  serves `dist/` and drives every page in headless Chromium with the network off
+  to prove the service worker covers it)
 - `types/` — hand-written declarations for untyped npm packages
 - `.githooks/` — pre-commit and pre-push; enabled by `deno task setup`
 - `.github/workflows/` — `ci.yml` (check, test, build on every push) and

@@ -7,12 +7,6 @@
     <meta name="theme-color" content="#0a0a0b" />
     <title>Airgap chess</title>
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
-    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="viewfinder">
@@ -157,6 +151,9 @@
           </button>
         </div>
       </div>
+      <p id="share-caption" class="mono muted" hidden>
+        On the other phone: open Airgap → Resume with QR
+      </p>
       <div id="controls" class="row" hidden>
         <button id="ping" hidden disabled>Ping</button>
         <label class="check"><input id="offer" type="checkbox" />

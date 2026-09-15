@@ -2,6 +2,7 @@
 // this is a plain text URL rather than a wire-protocol frame.
 import decodeQR from "qr/decode.js";
 import { Camera } from "@/adapters/camera.ts";
+import { startApp } from "@/adapters/app.ts";
 import type { RgbaImage } from "@/lib/transports/qr/qrDecoder.ts";
 import { gameLink } from "@/games/saves.ts";
 
@@ -66,3 +67,4 @@ async function start() {
 }
 
 button.onclick = start;
+startApp({ home: false });

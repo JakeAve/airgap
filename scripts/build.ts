@@ -1,7 +1,7 @@
 // Builds the static site into dist/: copies static/, bundles the app and the
 // service worker for the browser, and stamps the service worker with a build id.
-import { copy, emptyDir } from "@std/fs";
-import { join } from "@std/path";
+import { copy, emptyDir, walk } from "@std/fs";
+import { join, relative, SEPARATOR } from "@std/path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const DIST = join(ROOT, "dist");
@@ -48,11 +48,20 @@ export async function build() {
   await copy(join(ROOT, "static"), DIST, { overwrite: true });
   for (const [entry, out] of ENTRIES) await bundle(entry, join(DIST, out));
 
+  const shell = ["./"];
+  for await (const entry of walk(DIST, { includeDirs: false })) {
+    const path = relative(DIST, entry.path).replaceAll(SEPARATOR, "/");
+    if (path === "sw.js" || path.endsWith(".map")) continue;
+    if (path.split("/").some((segment) => segment.startsWith("."))) continue;
+    shell.push(`./${path}`);
+  }
+
   const swPath = join(DIST, "sw.js");
   const sw = await Deno.readTextFile(swPath);
   await Deno.writeTextFile(
     swPath,
-    sw.replaceAll("__BUILD_ID__", Date.now().toString(36)),
+    sw.replaceAll("__BUILD_ID__", Date.now().toString(36))
+      .replaceAll("__APP_SHELL__", JSON.stringify(shell.sort())),
   );
 }
 
