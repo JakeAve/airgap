@@ -477,6 +477,19 @@ a:hover {
   padding: 0.125rem 1rem 1rem;
 }
 
+/* Install */
+
+#install:empty {
+  display: none;
+}
+
+.install .dismiss {
+  padding: 0;
+  width: 44px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
 /* Facts */
 
 .facts {

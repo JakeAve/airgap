@@ -1,4 +1,4 @@
-import { startApp } from "@/adapters/app.ts";
+import { isInstalled, startApp } from "@/adapters/app.ts";
 import {
   deleteSave,
   GAME_PAGES,
@@ -93,6 +93,51 @@ function gameCard(game: typeof GAMES[number]) {
         <button name="role" value="guest" class="rx">Join</button>
       </form>
     </details>`;
+}
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+const INSTALL_DISMISSED_KEY = "airgap:install-dismissed";
+
+const IS_IOS = /iPhone|iPad/.test(navigator.userAgent) ||
+  (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
+
+let installPrompt: BeforeInstallPromptEvent | undefined;
+
+function installCard() {
+  if (isInstalled() || localStorage.getItem(INSTALL_DISMISSED_KEY)) return "";
+  if (!installPrompt && !IS_IOS) return "";
+  const line = installPrompt
+    ? "Plays offline and keeps your saves safe."
+    : "Tap Share, then Add to Home Screen with Open as Web App on. Keeps your saves safe.";
+  return `
+    <div class="card link-card install">
+      <span class="icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v12M7 10l5 5 5-5M4 21h16"></path>
+        </svg>
+      </span>
+      <span class="text">
+        <strong>Install before you lose signal</strong>
+        <small>${line}</small>
+      </span>
+      ${
+    installPrompt ? `<button type="button" data-install>Install</button>` : ""
+  }
+      <button type="button" class="dismiss" data-install-dismiss aria-label="Dismiss">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18"></path>
+        </svg>
+      </button>
+    </div>`;
+}
+
+function renderInstall() {
+  const slot = document.querySelector<HTMLElement>("#install");
+  if (slot) slot.innerHTML = installCard();
 }
 
 type Tab = "new" | "resume";
@@ -218,6 +263,7 @@ function render() {
   const app = document.querySelector<HTMLElement>("#app");
   if (!app) return;
   app.innerHTML = `
+    <div id="install">${installCard()}</div>
     ${tabsBar()}
     <div id="tab-panel" role="tabpanel">
       ${activeTab === "new" ? newGamePanel() : resumePanel()}
@@ -227,6 +273,22 @@ function render() {
 
 function handleClick(event: MouseEvent) {
   const target = event.target as Element;
+
+  if (target.closest("[data-install-dismiss]")) {
+    localStorage.setItem(INSTALL_DISMISSED_KEY, "1");
+    renderInstall();
+    return;
+  }
+
+  if (target.closest("[data-install]") && installPrompt) {
+    const prompt = installPrompt;
+    prompt.prompt();
+    prompt.userChoice.then(() => {
+      installPrompt = undefined;
+      renderInstall();
+    });
+    return;
+  }
 
   const tabButton = target.closest<HTMLButtonElement>("[data-tab]");
   if (tabButton) {
@@ -258,5 +320,14 @@ document.querySelector<HTMLElement>("#app")?.addEventListener(
   "click",
   handleClick,
 );
+addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  installPrompt = event as BeforeInstallPromptEvent;
+  renderInstall();
+});
+addEventListener("appinstalled", () => {
+  installPrompt = undefined;
+  renderInstall();
+});
 render();
 startApp({ home: true });
