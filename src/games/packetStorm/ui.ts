@@ -5,6 +5,7 @@ import {
 } from "@/games/turnPage.ts";
 import type { Role } from "@/games/turn.ts";
 import {
+  BLASTS,
   checksum,
   COLUMNS,
   initialState,
@@ -25,7 +26,12 @@ import { decodeMove, encodeMove } from "./codec.ts";
 const VIEW_HEIGHT = 128;
 const BLOCK = 4;
 const MS_PER_TICK = 8;
-const BLAST_MS = 450;
+const BLAST_MS = 1100;
+const MUZZLE_MS = 140;
+const SHAKE_MS = 320;
+const WRECK_DELAY_MS = 260;
+const DEBRIS = 28;
+const GRAVITY = 90;
 const BARREL = 5;
 const POWER_PER_UNIT = 2;
 
@@ -60,6 +66,20 @@ let animationStart = 0;
 let frame = 0;
 let dx = 0;
 let selected: Weapon = "packet";
+let hudTimer = 0;
+
+interface Boom {
+  x: number;
+  y: number;
+  r: number;
+  at: number;
+  side: Side;
+}
+
+const noise = (n: number) => {
+  const s = Math.sin(n) * 43758.5453;
+  return s - Math.floor(s);
+};
 
 function colors() {
   const css = getComputedStyle(document.body);
@@ -71,6 +91,10 @@ function colors() {
     top: token("--dim"),
     seam: token("--surface"),
     path: token("--fg"),
+    debris: token("--muted"),
+    hostCore: token("--x-core"),
+    guestCore: token("--o-core"),
+    mono: token("--font-mono"),
   };
 }
 
@@ -80,6 +104,30 @@ function shotDuration(state: State): number {
     ...(state.lastShot?.paths ?? []).map((p) => p.length),
   );
   return ticks * MS_PER_TICK;
+}
+
+const shooterOf = (state: State): Side =>
+  state.moves % 2 === 1 ? "host" : "guest";
+
+/** Every explosion the last shot sets off: one per blast at impact, then a bigger one for each rig it destroyed. */
+function explosions(state: State, flight: number): Boom[] {
+  const shot = state.lastShot;
+  if (!shot) return [];
+  const side = shooterOf(state);
+  const r = Math.max(5, BLASTS[shot.weapon].reach);
+  const booms = shot.blasts.map((b) => ({ ...b, r, at: flight, side }));
+  for (const victim of ["host", "guest"] as const) {
+    const rig = state.rigs[victim];
+    if (rig.hp > 0 || !before || before.rigs[victim].hp <= 0) continue;
+    booms.push({
+      x: rig.column,
+      y: state.heights[rig.column] + RIG_HEIGHT / 2,
+      r: 14,
+      at: flight + WRECK_DELAY_MS,
+      side: victim,
+    });
+  }
+  return booms;
 }
 
 function draw(now: number) {
@@ -93,6 +141,7 @@ function draw(now: number) {
   if (field.height !== height) field.height = height;
   const ctx = field.getContext("2d");
   if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, width, height);
   if (view === "guest" && state.moves === 0) return;
 
@@ -104,9 +153,26 @@ function draw(now: number) {
 
   const elapsed = now - animationStart;
   const flight = shotDuration(state);
-  const animating = !!state.lastShot && !stillMotion.matches &&
-    elapsed < flight + BLAST_MS;
+  const booms = explosions(state, flight);
+  const end = Math.max(flight, ...booms.map((b) => b.at + BLAST_MS));
+  const animating = !!state.lastShot && !stillMotion.matches && elapsed < end;
   const ground = animating && before && elapsed < flight ? before : state;
+  const sinceImpact = elapsed - flight;
+
+  if (
+    animating && sinceImpact >= 0 && sinceImpact < SHAKE_MS &&
+    state.lastShot?.weapon !== "firewall"
+  ) {
+    const quake = 1.5 * (1 - sinceImpact / SHAKE_MS);
+    ctx.setTransform(
+      1,
+      0,
+      0,
+      1,
+      Math.sin(elapsed * 0.9) * quake * sx,
+      Math.cos(elapsed * 1.3) * quake * sy,
+    );
+  }
 
   ctx.fillStyle = palette.ground;
   ground.heights.forEach((h, c) =>
@@ -134,7 +200,11 @@ function draw(now: number) {
       (aiming && side === local ? dx : 0);
     const base = ground.heights[column];
     const color = palette[side];
-    ctx.fillStyle = color;
+    const hit = animating && !!before &&
+      state.rigs[side].hp < before.rigs[side].hp &&
+      sinceImpact >= 0 && sinceImpact % 180 < 90 && sinceImpact < 360;
+    ctx.globalAlpha = ground.rigs[side].hp <= 0 ? 0.3 : 1;
+    ctx.fillStyle = hit ? palette.path : color;
     ctx.fillRect(
       px(column - RIG_HALF_WIDTH),
       py(base + RIG_HEIGHT),
@@ -161,11 +231,24 @@ function draw(now: number) {
       ctx.lineTo(x0, tip);
       ctx.fill();
     }
+    ctx.globalAlpha = 1;
   }
 
   if (!animating || !state.lastShot) return;
-  const shooter: Side = state.moves % 2 === 1 ? "host" : "guest";
+  const shooter = shooterOf(state);
   const shotColor = palette[shooter];
+  const muzzle = state.lastShot.paths[0]?.[0];
+  if (muzzle && elapsed < MUZZLE_MS) {
+    ctx.globalAlpha = 1 - elapsed / MUZZLE_MS;
+    ctx.fillStyle = palette[`${shooter}Core`];
+    ctx.shadowColor = shotColor;
+    ctx.shadowBlur = 12 * dpr;
+    ctx.beginPath();
+    ctx.arc(px(muzzle.x + 0.5), py(muzzle.y), 3 * sx, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
   const ticks = Math.floor(elapsed / MS_PER_TICK);
   ctx.strokeStyle = palette.path;
   ctx.fillStyle = shotColor;
@@ -183,28 +266,88 @@ function draw(now: number) {
     ctx.globalAlpha = 1;
     if (elapsed < flight && shownTicks < path.length) {
       const head = path[shownTicks - 1];
+      ctx.shadowColor = shotColor;
+      ctx.shadowBlur = 8 * dpr;
       ctx.fillRect(px(head.x) - sx, py(head.y) - sy, 3 * sx, 2 * sy);
+      ctx.shadowBlur = 0;
     }
   }
-  if (elapsed >= flight) {
-    const t = (elapsed - flight) / BLAST_MS;
-    ctx.strokeStyle = shotColor;
-    ctx.lineWidth = Math.max(1, 2 * dpr);
-    ctx.globalAlpha = 1 - t;
-    for (const blast of state.lastShot.blasts) {
-      ctx.beginPath();
-      ctx.arc(
-        px(blast.x + 0.5),
-        py(blast.y),
-        (2 + 10 * t) * sx,
-        0,
-        Math.PI * 2,
+  for (const boom of booms) {
+    const t = (elapsed - boom.at) / BLAST_MS;
+    if (t >= 0 && t < 1) drawBoom(ctx, boom, t);
+  }
+  if (before && sinceImpact >= 0 && sinceImpact < BLAST_MS) {
+    const t = sinceImpact / BLAST_MS;
+    ctx.font = `600 ${Math.round(13 * dpr)}px ${palette.mono}`;
+    ctx.textAlign = "center";
+    ctx.globalAlpha = t < 0.6 ? 1 : (1 - t) / 0.4;
+    for (const side of ["host", "guest"] as const) {
+      const lost = before.rigs[side].hp - state.rigs[side].hp;
+      if (lost <= 0) continue;
+      const column = state.rigs[side].column;
+      ctx.fillStyle = palette.path;
+      ctx.shadowColor = palette[side];
+      ctx.shadowBlur = 8 * dpr;
+      ctx.fillText(
+        `-${lost}`,
+        px(column + 0.5),
+        py(state.heights[column] + RIG_HEIGHT + 6 + 12 * t),
       );
-      ctx.stroke();
     }
+    ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
   }
   frame = requestAnimationFrame(draw);
+
+  /** One explosion at t from 0 to 1: a white-hot flash, a fireball, a shockwave ring, then ground chunks and sparks falling under gravity. */
+  function drawBoom(ctx: CanvasRenderingContext2D, boom: Boom, t: number) {
+    const cx = px(boom.x + 0.5);
+    const cy = py(boom.y);
+    const r = boom.r * sx;
+    const color = palette[boom.side];
+    const core = palette[`${boom.side}Core`];
+    const circle = (radius: number) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    };
+
+    const seconds = (t * BLAST_MS) / 1000;
+    ctx.globalAlpha = 1 - t;
+    for (let i = 0; i < DEBRIS; i++) {
+      const seed = boom.x * 31 + boom.y * 17 + i * 7.1;
+      const angle = Math.PI * (0.1 + 0.8 * noise(seed));
+      const speed = boom.r * (3 + 6 * noise(seed + 3.3));
+      const x = boom.x + 0.5 + Math.cos(angle) * speed * seconds;
+      const y = boom.y + Math.sin(angle) * speed * seconds -
+        (GRAVITY * seconds * seconds) / 2;
+      const spark = i % 3 === 0;
+      const size = spark ? 1.5 : 2;
+      ctx.fillStyle = spark ? core : palette.debris;
+      ctx.fillRect(px(x), py(y), size * sx, size * sy);
+    }
+
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 16 * dpr;
+    if (t < 0.5) {
+      ctx.globalAlpha = 0.8 * (1 - t / 0.5);
+      ctx.fillStyle = color;
+      circle(r * (0.5 + t));
+      ctx.fill();
+    }
+    if (t < 0.22) {
+      ctx.globalAlpha = 1 - t / 0.22;
+      ctx.fillStyle = core;
+      circle(r * (0.5 + 1.2 * t));
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = (1 - t) * (1 - t);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1, 2 * dpr);
+    circle(r * (0.3 + 1.7 * (1 - (1 - t) ** 3)));
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
 }
 
 function schedule() {
@@ -268,8 +411,17 @@ function render(state: State, role: Role) {
     shown = state;
     dx = 0;
     animationStart = performance.now();
+    clearTimeout(hudTimer);
+    if (state.lastShot && !stillMotion.matches) {
+      hudTimer = setTimeout(() => {
+        hudTimer = 0;
+        renderHud(state);
+      }, shotDuration(state));
+    } else {
+      hudTimer = 0;
+    }
   }
-  renderHud(state);
+  if (!hudTimer) renderHud(state);
   refresh();
 }
 
