@@ -185,3 +185,15 @@ via `drop-shadow`) are the only states. The trays under the card are plain
 outlined buttons in `--me` for your pieces and a mono line of counts for theirs.
 Hexes come out well under 44px on a phone once the hive is wide; the mitigation
 planned is pan and zoom.
+
+Packet Storm's ridge is one canvas, so its effects are drawn, not styled. A shot
+glows at the muzzle and on the flying packet, then each blast is a `-core`
+flash, a fireball and a shockwave ring in the shooter's `--x`/`--o`, with
+`--muted` chunks and `-core` sparks falling under gravity and a short screen
+shake; a rig that takes damage blinks `--fg` under a floating `-N`, and a
+destroyed rig sets off a bigger blast in its own colour and stays drawn at 30%.
+That is the twelfth place glow is allowed. The HP bars wait for impact. On a
+phone (under 40rem) the card goes edge to edge and grows into the height the
+controls leave, and the controls are packed to buy it: Angle and Power share a
+row, Ping sits beside Fire, weapon chips are 36px and the move row 40px, under
+the 44px rule on purpose.

@@ -161,7 +161,7 @@ interface Blast {
   reach: number;
 }
 
-const BLASTS: Record<Weapon, Blast> = {
+export const BLASTS: Record<Weapon, Blast> = {
   packet: { rx: 6, ry: 6, raise: false, damage: 40, reach: 9 },
   burst: { rx: 5, ry: 5, raise: false, damage: 30, reach: 8 },
   drill: { rx: 2, ry: 14, raise: false, damage: 60, reach: 7 },
