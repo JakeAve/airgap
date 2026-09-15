@@ -52,6 +52,7 @@ export async function build() {
   for await (const entry of walk(DIST, { includeDirs: false })) {
     const path = relative(DIST, entry.path).replaceAll(SEPARATOR, "/");
     if (path === "sw.js" || path.endsWith(".map")) continue;
+    if (path.split("/").some((segment) => segment.startsWith("."))) continue;
     shell.push(`./${path}`);
   }
 

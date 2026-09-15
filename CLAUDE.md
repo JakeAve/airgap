@@ -60,7 +60,10 @@ delete the branch.
   plus each family's `OFL-*.txt` license)
 - `src/main.ts` — app entry; bundled to `dist/main.js`
 - `src/sw.ts` — service worker; bundled to `dist/sw.js`. `__BUILD_ID__` is
-  replaced at build time so each build gets its own cache.
+  replaced at build time so each build gets its own cache, and `__APP_SHELL__`
+  with every built file (minus sourcemaps and dotfiles); it serves cache-first
+  and only skips waiting when asked from the home page with at most one Airgap
+  window open.
 - `src/diag.ts` + `static/diag.html` — diagnostics page: send and receive a test
   message over either transport, with timing log; its handshake form is a GET to
   the exchange screen

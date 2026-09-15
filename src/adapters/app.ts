@@ -19,16 +19,19 @@ function registerServiceWorker(home: boolean) {
   if (!sw.controller) {
     sw.addEventListener("controllerchange", showOfflineToast, { once: true });
   }
+  const armSkipWaiting = (worker: ServiceWorker) => {
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "installed" && sw.controller) {
+        worker.postMessage("skip-waiting");
+      }
+    });
+  };
   sw.register("./sw.js").then((registration) => {
     if (!home) return;
     registration.waiting?.postMessage("skip-waiting");
+    if (registration.installing) armSkipWaiting(registration.installing);
     registration.addEventListener("updatefound", () => {
-      const installing = registration.installing;
-      installing?.addEventListener("statechange", () => {
-        if (installing.state === "installed" && sw.controller) {
-          installing.postMessage("skip-waiting");
-        }
-      });
+      if (registration.installing) armSkipWaiting(registration.installing);
     });
   }).catch((err) => {
     console.error("service worker registration failed", err);
