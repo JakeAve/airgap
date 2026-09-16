@@ -15,6 +15,7 @@ import {
   reachable,
   RIG_HALF_WIDTH,
   RIG_HEIGHT,
+  type Shot,
   type Side,
   type State,
   turn,
@@ -67,6 +68,7 @@ let frame = 0;
 let dx = 0;
 let selected: Weapon = "packet";
 let hudTimer = 0;
+const aim: Record<Side, number> = { host: 45, guest: 135 };
 
 interface Boom {
   x: number;
@@ -104,6 +106,13 @@ function shotDuration(state: State): number {
     ...(state.lastShot?.paths ?? []).map((p) => p.length),
   );
   return ticks * MS_PER_TICK;
+}
+
+/** The barrel angle a shot was fired at, read back off its first two path steps. */
+function launchAngle(shot: Shot): number {
+  const [a, b] = shot.paths[0] ?? [];
+  if (!a || !b) return 45;
+  return (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
 }
 
 const shooterOf = (state: State): Side =>
@@ -211,19 +220,20 @@ function draw(now: number) {
       (RIG_HALF_WIDTH * 2 + 1) * sx,
       RIG_HEIGHT * sy,
     );
+    const radians =
+      ((side === local ? Number(angleInput.value) : aim[side]) * Math.PI) / 180;
+    const x0 = px(column + 0.5);
+    const y0 = py(base + RIG_HEIGHT);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = sy;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(
+      x0 + Math.cos(radians) * BARREL * sx,
+      y0 - Math.sin(radians) * BARREL * sy,
+    );
+    ctx.stroke();
     if (side === local) {
-      const radians = (Number(angleInput.value) * Math.PI) / 180;
-      const x0 = px(column + 0.5);
-      const y0 = py(base + RIG_HEIGHT);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = sy;
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(
-        x0 + Math.cos(radians) * BARREL * sx,
-        y0 - Math.sin(radians) * BARREL * sy,
-      );
-      ctx.stroke();
       const tip = py(base + RIG_HEIGHT + BARREL + 3);
       ctx.beginPath();
       ctx.moveTo(x0 - 2 * sx, tip - 3 * sy);
@@ -409,6 +419,7 @@ function render(state: State, role: Role) {
       ? shown
       : undefined;
     shown = state;
+    if (state.lastShot) aim[shooterOf(state)] = launchAngle(state.lastShot);
     dx = 0;
     animationStart = performance.now();
     clearTimeout(hudTimer);
