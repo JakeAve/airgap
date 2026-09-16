@@ -7,6 +7,7 @@ import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
 import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
 import { QR_COLORS, QR_GUEST_COLORS } from "@/lib/transports/qr/rasterize.ts";
 import { drawQr } from "@/adapters/screen.ts";
+import { startApp } from "@/adapters/app.ts";
 import { newSessionId, openLink, type PageLink } from "@/adapters/pageLink.ts";
 import { deleteSave, getSave, newSaveId, putSave } from "@/games/saves.ts";
 import {
@@ -889,3 +890,4 @@ if (saveParam !== null && !restore(saveParam)) {
 
 render();
 status();
+startApp({ home: false });

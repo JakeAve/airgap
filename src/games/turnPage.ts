@@ -7,6 +7,7 @@ import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
 import { QrEncoder, type QrMatrix } from "@/lib/transports/qr/qrEncoder.ts";
 import { QR_COLORS, QR_GUEST_COLORS } from "@/lib/transports/qr/rasterize.ts";
 import { drawQr } from "@/adapters/screen.ts";
+import { startApp } from "@/adapters/app.ts";
 import { newSessionId, openLink, type PageLink } from "@/adapters/pageLink.ts";
 import {
   decodeShare,
@@ -54,6 +55,7 @@ export interface TurnPage<S> {
 const SETTINGS_KEY = "airgap.settings";
 
 export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
+  startApp({ home: false });
   const $ = <T extends HTMLElement>(id: string) =>
     document.getElementById(id) as T;
 
@@ -99,6 +101,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
   const ping = $<HTMLButtonElement>("ping");
   const start = $<HTMLButtonElement>("start");
   const share = $<HTMLButtonElement>("share");
+  const shareCaption = $<HTMLElement>("share-caption");
   /** The host's rule checkboxes, if the game has any: only shown while the host is setting up. */
   const options = document.getElementById("options");
   const qrEncoder = new QrEncoder();
@@ -181,6 +184,7 @@ export function mountTurnPage<S>(game: TurnGame<S>): TurnPage<S> {
       (showing && qrcode.checked && !codeDismissed
         ? qrEncoder.encode(buildFrames(showing))
         : undefined);
+    shareCaption.hidden = !sharing;
     if (matrix) {
       drawQr(matrix, code, qrColors);
       code.hidden = false;

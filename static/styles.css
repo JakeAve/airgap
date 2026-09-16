@@ -1,3 +1,41 @@
+@font-face {
+  font-family: "Silkscreen";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/silkscreen-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Silkscreen";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./fonts/silkscreen-latin-700-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("./fonts/space-grotesk-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+    U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("./fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+    U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   color-scheme: dark;
   --bg: #0a0a0b;
@@ -437,6 +475,19 @@ a:hover {
 .save-actions {
   align-items: center;
   padding: 0.125rem 1rem 1rem;
+}
+
+/* Install */
+
+#install:empty {
+  display: none;
+}
+
+.install .dismiss {
+  padding: 0;
+  width: 44px;
+  flex-shrink: 0;
+  color: var(--muted);
 }
 
 /* Facts */
@@ -1869,4 +1920,34 @@ label.check {
 
 .storm-move #fire {
   flex: 1.5;
+}
+
+/* Above the viewfinder's header and camera; never takes a tap. */
+.toast {
+  position: fixed;
+  z-index: 30;
+  top: calc(env(safe-area-inset-top) + 1rem);
+  left: 50%;
+  translate: -50% 0;
+  padding: 0.5rem 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  color: var(--fg);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: toast-in 200ms ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: -50% -0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
 }

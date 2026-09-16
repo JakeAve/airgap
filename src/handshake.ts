@@ -7,6 +7,7 @@ import type { SoundProtocol } from "@/lib/transports/sound/ggwave.ts";
 import { QrEncoder } from "@/lib/transports/qr/qrEncoder.ts";
 import { QR_COLORS, QR_GUEST_COLORS } from "@/lib/transports/qr/rasterize.ts";
 import { drawQr } from "@/adapters/screen.ts";
+import { startApp } from "@/adapters/app.ts";
 import {
   newSessionId,
   openLink,
@@ -327,3 +328,4 @@ button("flip").onclick = async () => {
   }
 };
 status(`ready · ${text}`, "");
+startApp({ home: false });
