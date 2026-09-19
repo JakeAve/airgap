@@ -4,7 +4,7 @@
     "check": "deno fmt --check && deno lint && deno check src scripts",
     "test": "deno test -A",
     "pre-commit": "deno task check && deno task test",
-    "pre-push": "deno task check && deno task test",
+    "pre-push": "deno task check && deno task test && deno task build",
     "build": "deno run -A scripts/build.ts",
     "dev": "deno run -A scripts/dev.ts",
     "e2e": "deno task build && deno run -A scripts/e2e/diag.ts && deno run -A scripts/e2e/offline.ts",

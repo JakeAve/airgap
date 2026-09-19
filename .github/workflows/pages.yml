@@ -20,8 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
+        # Pinned: deno bundle in 2.9.7 fetches esbuild's platform binary
+        # and then looks for it at the wrong path, failing every build.
         with:
-          deno-version: v2.x
+          deno-version: v2.9.6
       - run: deno task build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
