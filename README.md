@@ -8,17 +8,8 @@ are interchangeable, so a noisy room or a broken camera never blocks a game.
 Hosted on GitHub Pages as a PWA: install it to the home screen and every page,
 including the games, keeps working with no network at all.
 
-## Games
-
-- **Tic-tac-toe**
-- **Checkers** — captures, kinging, and forced jumps
-- **Chess** — full FIDE movement, check, and every draw
-- **Spaceships** — battleship: place a fleet, hunt across two 10×10 sectors
-- **Swarm** — a Hive-style game on a hex grid
-- **Packet Storm** — artillery over a destructible ridge, with wind
-
-Each game saves after every move, and offers the other player's side as a QR
-code, so the second phone can pick a game up mid-match by scanning it on the
+Every game saves after each move and offers the other player's side as a QR
+code, so the second phone can pick a match up mid-game by scanning it on the
 Resume screen instead of starting over.
 
 ## Setup
