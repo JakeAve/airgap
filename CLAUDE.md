@@ -119,7 +119,7 @@ delete the branch.
 - `src/games/turn.ts` + `src/games/turnPage.ts` — the shared turn-game page:
   `turn.ts` has the `Role` type and the no-handshake accept rule, `turnPage.ts`
   has the DOM plumbing (settings menu, log, QR/sound transmit, receive loop)
-  tic-tac-toe, checkers, chess, Swarm, and Packet Storm mount
+  that tic-tac-toe, checkers, chess, Swarm, and Packet Storm mount
 - `src/games/ticTacToe/ui.ts` + `static/tictactoe.html`,
   `src/games/checkers/ui.ts` + `static/checkers.html`, `src/games/chess/ui.ts` +
   `static/chess.html`, `src/games/hive/ui.ts` + `static/swarm.html`, and
@@ -131,11 +131,13 @@ delete the branch.
 - `scripts/` — Deno scripts (`build.ts`, `dev.ts` with optional HTTPS from
   `.certs/`, `e2e/` Playwright run against fake devices plus `offline.ts`, which
   serves `dist/` and drives every page in headless Chromium with the network off
-  to prove the service worker covers it)
+  to prove the service worker covers it, and `determinism.ts`, which bundles a
+  game's logic and replays its golden checksum in Chromium, Firefox, and WebKit)
 - `types/` — hand-written declarations for untyped npm packages
 - `.githooks/` — pre-commit and pre-push; enabled by `deno task setup`
-- `.github/workflows/` — `ci.yml` (check, test, build on every push) and
-  `pages.yml` (deploy `dist/` on push to `main`)
+- `.github/workflows/` — `ci.yml` (check, test, build on every push, plus a
+  second job running `deno task e2e` in Chromium) and `pages.yml` (deploy
+  `dist/` on push to `main`)
 
 ## Architecture
 
