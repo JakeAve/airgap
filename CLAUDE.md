@@ -30,7 +30,7 @@ deno task build        # production build → dist/
 deno task check        # fmt check + lint + type check
 deno task test         # unit tests
 deno task pre-commit   # check + test (also run by .githooks/pre-commit)
-deno task pre-push     # check + test (also run by .githooks/pre-push)
+deno task pre-push     # check + test + build (also run by .githooks/pre-push)
 deno task e2e          # build, then drive diag.html and handshake.html in headless Chromium with fake devices, then confirm every page loads offline from the service worker
 deno task determinism  # bundle a game's logic and run its golden checksum in Chromium, Firefox, and WebKit
 ```
