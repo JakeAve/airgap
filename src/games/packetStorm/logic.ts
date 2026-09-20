@@ -19,6 +19,8 @@ export interface Rig {
 /** Paths and blasts are in terrain units: x a column, y a height. */
 export interface Shot {
   weapon: Weapon;
+  /** The angle it was fired at, so a screen can point the barrel without guessing. */
+  angle: number;
   paths: { x: number; y: number }[][];
   blasts: { x: number; y: number }[];
 }
@@ -312,25 +314,39 @@ function fly(
   for (let tick = 1; tick <= MAX_TICKS; tick++) {
     vy -= GRAVITY;
     if (tick % WIND_EVERY === 0) vx += wind;
-    x += vx;
-    y += vy;
-    if (x < 0 || x >= COLUMNS * FP) return { path, blast: null };
-    const col = x >> FP_SHIFT;
-    const row = y >> FP_SHIFT;
-    path.push({ x: col, y: row });
-    for (const side of ["host", "guest"] as const) {
-      const rig = rigs[side];
-      const base = heights[rig.column];
-      const inside = Math.abs(col - rig.column) <= RIG_HALF_WIDTH &&
-        row >= base && row < base + RIG_HEIGHT;
-      if (side === shooter && !armed) {
-        if (!inside) armed = true;
-        continue;
+    const fromX = x;
+    const fromY = y;
+    // A fast shell crosses more than one column a tick, so walk the tick in
+    // sub-column steps: sampling only its end would let it pass through a wall
+    // or blow up at the top of one it clipped low down. The last step lands on
+    // vx and vy exactly, so an uninterrupted flight is unchanged.
+    const steps = (Math.max(Math.abs(vx), Math.abs(vy)) >> FP_SHIFT) + 1;
+    for (let step = 1; step <= steps; step++) {
+      x = fromX + Math.trunc((vx * step) / steps);
+      y = fromY + Math.trunc((vy * step) / steps);
+      if (x < 0 || x >= COLUMNS * FP) return { path, blast: null };
+      const col = x >> FP_SHIFT;
+      const row = y >> FP_SHIFT;
+      const here = { x: col, y: row };
+      if (step === steps) path.push(here);
+      for (const side of ["host", "guest"] as const) {
+        const rig = rigs[side];
+        const base = heights[rig.column];
+        const inside = Math.abs(col - rig.column) <= RIG_HALF_WIDTH &&
+          row >= base && row < base + RIG_HEIGHT;
+        if (side === shooter && !armed) {
+          if (!inside) armed = true;
+          continue;
+        }
+        if (inside) {
+          if (step !== steps) path.push(here);
+          return { path, blast: here };
+        }
       }
-      if (inside) return { path, blast: { x: col, y: row } };
-    }
-    if (row < heights[col]) {
-      return { path, blast: { x: col, y: heights[col] } };
+      if (row < heights[col]) {
+        if (step !== steps) path.push(here);
+        return { path, blast: { x: col, y: Math.max(0, row) } };
+      }
     }
   }
   return { path, blast: null };
@@ -412,7 +428,7 @@ export function play(state: State, move: Move): State | null {
     rigs,
     wind: windFor(state.seed, moves),
     moves,
-    lastShot: { weapon, paths: flights.map((f) => f.path), blasts },
+    lastShot: { weapon, angle, paths: flights.map((f) => f.path), blasts },
   };
 }
 

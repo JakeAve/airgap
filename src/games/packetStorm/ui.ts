@@ -15,7 +15,6 @@ import {
   reachable,
   RIG_HALF_WIDTH,
   RIG_HEIGHT,
-  type Shot,
   type Side,
   type State,
   turn,
@@ -68,7 +67,8 @@ let frame = 0;
 let dx = 0;
 let selected: Weapon = "packet";
 let hudTimer = 0;
-const aim: Record<Side, number> = { host: 45, guest: 135 };
+const START_AIM: Record<Side, number> = { host: 45, guest: 135 };
+const aim: Record<Side, number> = { ...START_AIM };
 
 interface Boom {
   x: number;
@@ -106,13 +106,6 @@ function shotDuration(state: State): number {
     ...(state.lastShot?.paths ?? []).map((p) => p.length),
   );
   return ticks * MS_PER_TICK;
-}
-
-/** The barrel angle a shot was fired at, read back off its first two path steps. */
-function launchAngle(shot: Shot): number {
-  const [a, b] = shot.paths[0] ?? [];
-  if (!a || !b) return 45;
-  return (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
 }
 
 const shooterOf = (state: State): Side =>
@@ -419,7 +412,8 @@ function render(state: State, role: Role) {
       ? shown
       : undefined;
     shown = state;
-    if (state.lastShot) aim[shooterOf(state)] = launchAngle(state.lastShot);
+    if (state.moves === 0) Object.assign(aim, START_AIM);
+    if (state.lastShot) aim[shooterOf(state)] = state.lastShot.angle;
     dx = 0;
     animationStart = performance.now();
     clearTimeout(hudTimer);

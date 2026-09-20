@@ -196,8 +196,31 @@ Deno.test("the checksum follows the state", () => {
 });
 
 Deno.test("the golden replay matches its recorded checksum and HP", () => {
-  assertEquals(goldenChecksum(), 227);
+  assertEquals(goldenChecksum(), 164);
   const state = goldenState();
   assertEquals(state.rigs.host.hp, 100);
-  assertEquals(state.rigs.guest.hp, 28);
+  assertEquals(state.rigs.guest.hp, 26);
+});
+
+Deno.test("a shell into a wall blows up where it hits, not at the wall's top", () => {
+  const state = flat();
+  for (let c = 60; c <= 62; c++) state.heights[c] = 90;
+  const next = play(state, { ...shot, angle: 20, power: 80 })!;
+  const [blast] = next.lastShot!.blasts;
+  assertEquals(blast.x, 60);
+  assert(blast.y < 60, `blast at ${blast.y} should be on the wall's face`);
+  assert(next.heights[60] < 90);
+});
+
+Deno.test("a fast shell cannot tunnel through a narrow wall", () => {
+  const state = flat();
+  state.heights[60] = 120;
+  const next = play(state, { ...shot, angle: 15, power: 100 })!;
+  const [blast] = next.lastShot!.blasts;
+  assertEquals(blast.x, 60);
+});
+
+Deno.test("a shot records the angle it was fired at", () => {
+  const next = play(flat(), { ...shot, angle: 63 })!;
+  assertEquals(next.lastShot!.angle, 63);
 });
