@@ -24,6 +24,7 @@ import {
   SHIPS,
   shipsLeft,
   shoot,
+  sunkRun,
 } from "./logic.ts";
 import { REVEAL, SHOT } from "./codec.ts";
 
@@ -121,6 +122,17 @@ Deno.test("fire reports miss, hit, and sunk with the ship only when sunk", () =>
   assertEquals(fire(MINE, [], 40), { outcome: "hit", ship: null });
   assertEquals(fire(MINE, [40], 41), { outcome: "sunk", ship: 4 });
   assertEquals(fire(MINE, [30, 31], 32), { outcome: "sunk", ship: 3 });
+});
+
+Deno.test("sunkRun recovers a sunk ship's cells from my own hits", () => {
+  const shots = [30, 31, 32, 99].map((cell) => ({
+    cell,
+    result: cell === 99
+      ? { outcome: "miss" as const, ship: null }
+      : { outcome: "hit" as const, ship: null },
+  }));
+  assertEquals(sunkRun(shots, 31, 3), [31, 30, 32]);
+  assertEquals(sunkRun(shots, 31, 4), [31]);
 });
 
 Deno.test("allSunk needs every cell of every ship", () => {

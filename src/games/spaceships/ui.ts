@@ -37,6 +37,7 @@ import {
   shipsLeft,
   shoot,
   SHOT,
+  sunkRun,
 } from "./logic.ts";
 import { decodeReveal, decodeShot, encodeReveal, encodeShot } from "./codec.ts";
 
@@ -301,11 +302,24 @@ function showBig(enemy: boolean) {
   render();
 }
 
+/** Every cell of a ship a sinking shot named, inferred from my own hits. */
+function sunkCells(mine: Game["mine"]): Set<number> {
+  const cells = new Set<number>();
+  for (const shot of mine) {
+    if (shot.result?.outcome === "sunk") {
+      const length = SHIPS[shot.result.ship ?? 0].length;
+      for (const c of sunkRun(mine, shot.cell, length)) cells.add(c);
+    }
+  }
+  return cells;
+}
+
 function paintSector(
   els: HTMLElement[],
   svg: SVGSVGElement,
   enemy: boolean,
 ) {
+  const sunk = game && enemy ? sunkCells(game.mine) : undefined;
   els.forEach((el, cell) => {
     let cls = "";
     if (game && enemy) {
@@ -315,6 +329,8 @@ function paintSector(
           ? "sel"
           : shot.result.outcome === "miss"
           ? "miss"
+          : sunk!.has(cell)
+          ? "sunk"
           : "hit"
         : selected === cell
         ? "sel"
@@ -540,15 +556,11 @@ async function awaitMove() {
     showing = undefined;
     session ??= m.session;
     log(`received ${describe(m)}`);
-    const before: Game = game;
     const myShot = game.mine.at(-1);
     if (shot) {
       const next = receiveShot(game, shot.result, shot.cell);
       const theirs = next.theirs.at(-1)!.result;
       note = describeTurn(shot.result, theirs, shot.cell, game.fleet);
-      showBig(false);
-      await launch(shot.cell, true);
-      if (game !== before) return;
       if (outcome(next) === "lost") {
         game = next;
         sendReveal();
@@ -556,12 +568,19 @@ async function awaitMove() {
         moved(next);
       }
       const played: Game | undefined = game;
+      // Show the answer to my own shot first — it's what I've been waiting on —
+      // then their new shot landing on my board.
+      if (myShot && shot.result) {
+        showBig(true);
+        await impact(myShot.cell, shot.result);
+        if (game !== played) return;
+      }
       showBig(false);
+      await launch(shot.cell, true);
+      if (game !== played) return;
       await impact(shot.cell, theirs);
-      await pause(350);
       if (game !== played) return;
       showBig(outcome(game) !== null || myTurn(game, role));
-      if (myShot && shot.result) await impact(myShot.cell, shot.result);
     } else if (revealedFleet) {
       theirFleet = revealedFleet;
       game = receiveReveal(game, revealedFleet);

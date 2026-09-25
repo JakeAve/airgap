@@ -1441,6 +1441,14 @@ button:has(.sector.small) {
   background: radial-gradient(circle, var(--dim) 0 3px, transparent 3px);
 }
 
+.sector > .sunk {
+  background: var(--shooter);
+  border-color: var(--shooter-core);
+  outline: 2px solid var(--shooter-core);
+  outline-offset: -2px;
+  box-shadow: 0 0 10px rgba(var(--shooter-rgb), 0.6);
+}
+
 .sector.small > .miss {
   background: radial-gradient(circle, var(--dim) 0 1.5px, transparent 1.5px);
 }

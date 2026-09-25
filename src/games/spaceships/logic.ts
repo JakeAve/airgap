@@ -101,6 +101,42 @@ export function shipAt(fleet: Fleet, cell: number): number {
   return fleet.findIndex((p, i) => cells(i, p).includes(cell));
 }
 
+/**
+ * The straight run of my own resolved (non-miss) shots through `cell` whose
+ * length matches `length` — the shape of the ship a sinking shot just named.
+ * I never see the enemy's placements, so this is inferred from my hits, not
+ * read off a fleet; ships never overlap but may touch, so on a rare adjacent
+ * placement it can pick up a neighbor's cell instead of the true shape.
+ */
+export function sunkRun(
+  shots: { cell: number; result: Result | null }[],
+  cell: number,
+  length: number,
+): number[] {
+  const hit = new Set(
+    shots.filter((s) => s.result && s.result.outcome !== "miss").map((s) =>
+      s.cell
+    ),
+  );
+  const row = (c: number) => Math.floor(c / GRID);
+  const run = (step: number, sameLine: (c: number) => boolean) => {
+    const run = [cell];
+    for (const dir of [-step, step]) {
+      let c = cell + dir;
+      while (hit.has(c) && sameLine(c) && run.length <= length) {
+        run.push(c);
+        c += dir;
+      }
+    }
+    return run;
+  };
+  const horizontal = run(1, (c) => row(c) === row(cell));
+  const vertical = run(GRID, () => true);
+  if (horizontal.length === length) return horizontal;
+  if (vertical.length === length) return vertical;
+  return [cell];
+}
+
 export function fire(fleet: Fleet, before: number[], cell: number): Result {
   const ship = shipAt(fleet, cell);
   if (ship < 0) return { outcome: "miss", ship: null };
